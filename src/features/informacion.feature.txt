@@ -1,0 +1,229 @@
+1 feature hasta ahora tiene la app, transcribir y corregir, algo que busca el usuario de mi app.
+
+✅ Tu feature real es:
+
+Audio Conversation Analysis
+
+o más simple:
+
+Audio Conversation Feedback
+
+🎯 ¿Qué problema resuelve ese feature?
+
+“Tengo una conversación hablada y quiero entenderla mejor y mejorar cómo hablo.”
+
+
+🧠 Qué incluye este feature (scope correcto)
+
+✔️ Subir audio
+✔️ Transcribir
+✔️ Detectar hablantes
+✔️ Mostrar conversación
+✔️ Corregir lo dicho por uno de los hablantes
+✔️ Sugerir mejoras de idioma
+
+Todo eso es una sola intención del usuario, por lo tanto:
+
+👉 1 feature
+
+Un feature = una intención clara del usuario
+
+3️⃣ Entonces… ¿qué sería OTRO feature distinto?
+
+Un feature distinto aparece cuando:
+
+👉 Cambia la intención principal del usuario
+
+Veamos ejemplos reales.
+
+🟦 Feature nuevo #1: “Practice Mode”
+
+“Quiero practicar inglés hablando solo”
+
+Qué cambia:
+
+No hay conversación
+
+No hay diarización
+
+No hay Persona A/B
+
+👉 Es otra intención
+👉 Otro flujo
+👉 Otro feature
+
+🟦 Feature nuevo #2: “Conversation Summary”
+
+“Quiero un resumen de la conversación”
+
+Qué cambia:
+
+No corrige gramática
+
+No seleccionás hablante
+
+Produce output distinto (summary, bullets)
+
+👉 Feature distinto
+
+🟦 Feature nuevo #3: “Vocabulary Extraction”
+
+“Quiero aprender palabras nuevas de esta conversación”
+
+Output:
+
+Lista de palabras
+
+Traducción
+
+Ejemplos
+
+👉 Feature nuevo
+👉 Puede reutilizar dominio de texto, pero no UI ni flujo
+
+🟦 Feature nuevo #4: “Roleplay AI”
+
+“Quiero hablar con una IA que me corrija en tiempo real”
+
+Audio input
+
+Audio output
+
+Streaming
+
+Contexto largo
+
+👉 Feature grande, separado
+
+
+
+✅ Sí: seguimos SOLO con lo que hoy ofrece tu app
+
+El feature queda formalmente definido así:
+
+Feature: Audio Conversation Feedback
+
+Y solo incluye lo que tu app hace hoy.
+
+🎯 Qué hace HOY tu app (scope cerrado)
+Entrada
+
+Audio subido por el usuario (WhatsApp, grabación, etc.)
+
+Proceso
+
+Transcripción
+
+Detección de hablantes (A / B)
+
+Construcción de conversación legible
+
+Interacción
+
+El usuario elige hablante A o B
+
+Salida
+
+Correcciones / sugerencias de idioma
+
+Manteniendo significado
+
+Resaltando mejoras
+
+❌ Qué NO entra (todavía)
+
+Resúmenes
+
+Vocabulario
+
+Roleplay
+
+Feedback en tiempo real
+
+Audio de respuesta
+
+Más de 2 hablantes
+
+Historial
+
+Autenticación
+
+Todo eso queda explícitamente fuera del feature actual.
+Eso es buen diseño.
+
+🧠 Cómo vamos a pensar este feature internamente
+
+Este feature tiene 3 capas claras:
+
+Feature (qué quiere el usuario)
+├── UI (cómo interactúa)
+├── Application logic (qué pasa)
+└── Domain (qué significa)
+
+1️⃣ UI (feature-level)
+
+Responsabilidad:
+
+Mostrar
+
+Capturar inputs
+
+Llamar acciones
+
+Ejemplos:
+
+Subir audio
+
+Botón “Enviar”
+
+Selector A / B
+
+Mostrar conversación
+
+Mostrar correcciones
+
+👉 Nunca decide reglas de negocio
+
+2️⃣ Application logic (orquestación)
+
+Responsabilidad:
+
+Coordinar pasos
+
+Llamar servicios
+
+Transformar datos
+
+Ejemplo:
+
+“Recibo audio → lo transcribo → lo convierto en conversación”
+
+👉 Aquí viven:
+
+hooks
+
+actions
+
+controllers
+
+3️⃣ Domain (significado)
+
+Responsabilidad:
+
+Qué es una conversación
+
+Qué es un hablante
+
+Cómo se representa
+
+Cómo se transforma
+
+Ejemplo:
+
+“Un diarized segment pertenece a un hablante lógico A/B”
+
+“Una conversación es una secuencia ordenada de turnos”
+
+👉 NO sabe nada de OpenAI
+👉 NO sabe nada de React
+👉 NO sabe nada de Next

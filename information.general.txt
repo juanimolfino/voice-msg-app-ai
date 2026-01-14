@@ -1,0 +1,182 @@
+Primero: qué tipo de app es la tuya.
+
+🎯 Una app de aprendizaje de idiomas basada en conversaciones reales
+
+Es:
+
+“Hablé con personas reales → quiero mejorar cómo hablé”
+
+🧩 Cosas que TODA app real necesita (más temprano que tarde)
+
+En orden lógico:
+
+- Identidad del usuario
+
+Auth (aunque sea simple)
+
+- Persistencia
+
+Guardar conversaciones
+
+- Historial
+
+Volver a ver conversaciones pasadas
+
+- Contexto
+
+Saber “quién soy yo en esta conversación”
+
+- Escalabilidad del dominio
+
+Más hablantes
+
+Más idiomas
+
+Más feedback
+
+
+
+3️⃣ Cómo escalar sin mezclar todo (regla de oro)
+
+Cada vez que quieras agregar algo, hacete estas 3 preguntas:
+
+❓ 1. ¿Cambia la intención del usuario?
+
+❌ No → mismo feature
+
+✅ Sí → feature nuevo
+
+Ejemplo:
+
+Subir audio vs grabar audio
+👉 Misma intención → mismo feature
+
+
+
+❓ 2. ¿Es UI, lógica o significado?
+
+UI → components / features
+
+Lógica → hooks / application
+
+Significado → domain
+
+Nunca mezclar.
+
+
+❓ 3. ¿Esto depende de OpenAI?
+
+Sí → services
+
+No → domain
+
+
+
+3
+
+🧩 Cómo imaginar la app (sin programar)
+Flujo mental ideal:
+
+Se transcribe el audio
+
+Se detectan N hablantes
+
+La app muestra:
+
+Speaker 1
+
+Speaker 2
+
+Speaker 3
+
+El usuario dice:
+
+“Yo soy el Speaker 2”
+
+La app:
+
+Marca ese hablante como ME
+
+Todas las correcciones se hacen solo ahí
+
+
+🧠 Cómo decidirlo (regla mental)
+
+Preguntate:
+
+“Si mañana cambio OpenAI, React, o Next… ¿esto sigue siendo verdad?”
+
+✅ Sí → Domain
+
+❌ No → Service / Hook / UI
+
+
+TABLA resumen
+| Tipo de lógica      | Dónde va       |
+| ------------------- | -------------- |
+| Ejecutar algo       | service / hook |
+| Decidir significado | domain         |
+| Mostrar             | component      |
+| Coordinar           | feature        |
+
+
+DONDE VIVE LA LOGICA?
+| Parte              | Lugar            |
+| ------------------ | ---------------- |
+| Detectar voces     | Service (OpenAI) |
+| Elegir quién soy   | UI               |
+| Qué significa “yo” | Domain           |
+
+
+DOMAIN: para entenderlo 
+
+🧠 Ejemplo 1 (TU APP)
+Nueva regla:
+
+“Solo se corrige el hablante marcado como ME”
+
+📌 Eso es significado, no UI.
+
+No depende de React
+
+No depende de OpenAI
+
+Es una regla del negocio
+
+👉 Domain
+
+🧠 Ejemplo 2 (más adelante)
+
+“Si el usuario tiene nivel beginner, las sugerencias deben ser simples”
+
+Eso es:
+
+Semántica
+
+Regla de aprendizaje
+
+👉 Domain
+
+🧠 Ejemplo 3 (múltiples hablantes)
+
+Antes:
+
+“Hay Persona A y B”
+
+Después:
+
+“Hay N hablantes y uno es ME”
+
+Eso redefine qué es una conversación.
+
+👉 Domain
+
+❌ Ejemplo que NO va en domain
+
+“Mostrar un select con borde verde”
+
+Eso es UI.
+
+🧠 Regla simple para recordarlo
+
+Domain no hace cosas, define verdades.

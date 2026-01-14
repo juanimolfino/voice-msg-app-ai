@@ -1,0 +1,52 @@
+6️⃣ Orden recomendado para escalar (pasos seguros)
+
+Te dejo una roadmap limpia, sin ansiedad:
+
+🟢 Paso 1 (ahora)
+
+Cerrar bien el feature actual
+
+UX clara
+
+Código ordenado
+
+🟡 Paso 2
+
+Agregar grabación desde la app
+
+Sin tocar backend ni domain
+
+🟠 Paso 3
+
+Soportar más de 2 hablantes
+
+Selector “yo soy este hablante”
+
+🔵 Paso 4
+
+Guardar conversaciones
+
+Historial simple
+
+🟣 Paso 5
+
+Auth
+
+Perfil de idioma
+
+Nivel del usuario
+
+
+
+COMO PENSAR UNA IDEA NUEVA:
+¿Nueva intención del usuario?
+→ Feature nuevo
+
+¿Misma intención, nueva forma de input?
+→ UI
+
+¿Nueva regla de significado?
+→ Domain
+
+¿Nuevo proveedor o modelo?
+→ Service
