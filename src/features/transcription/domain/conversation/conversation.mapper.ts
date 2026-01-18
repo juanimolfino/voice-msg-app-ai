@@ -1,4 +1,4 @@
-import { DiarizedSegment } from "@/types/openai";
+import { DiarizedSegment } from "@/features/transcription/types/openai";
 import { Speaker } from "./conversation.types";
 
 /**

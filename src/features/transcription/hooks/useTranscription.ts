@@ -13,15 +13,15 @@ export function useTranscription() {
   const [rawText, setRawText] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function sendAudio() {
-    if (!audio) return;
+  async function sendAudio(file: File) {
+    console.log("Enviando audio:", file);
 
     setLoading(true);
     setConversation("");
     setRawText("");
 
     const formData = new FormData();
-    formData.append("audio", audio);
+    formData.append("audio", file);
 
     const res = await fetch("/api/transcription-diarize", {
       method: "POST",
@@ -29,6 +29,7 @@ export function useTranscription() {
     });
 
     const data = await res.json();
+
     setRawText(data.rawText);
     setConversation(data.conversation);
     setLoading(false);
@@ -40,6 +41,6 @@ export function useTranscription() {
     conversation,
     rawText,
     loading,
-    sendAudio,
+    sendAudio, // ✅ ahora TS está feliz
   };
 }

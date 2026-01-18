@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"; // 👉 Herramienta de Next.js para devolver respuestas HTTP
-import { transcribeDiarizedAudio } from "@/services/openai/transcribeDiarized"; 
+import { transcribeDiarizedAudio } from "@/features/transcription/services/openai/transcribeDiarized";
 // 👉 Service
 // 📡 Habla con OpenAI
 // 🎧 Recibe audio
 // 📄 Devuelve transcripción técnica
 
 // 💡 No decide nada, solo ejecuta
-import { mapDiarizedToConversation } from "@/domain/conversation/conversation.mapper"; // Esta es la clave
+import { mapDiarizedToConversation } from "@/features/transcription/domain/conversation/conversation.mapper"; // Esta es la clave
 
 // 👉 Convierte datos técnicos
 // 👉 en datos del negocio

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { correctSpeakerGrammar } from "@/services/openai/correctSpeaker";
+import { correctSpeakerGrammar } from "@/features/transcription/services/openai/correctSpeaker";
 
 export async function POST(req: Request) {
   const { speaker, conversation } = await req.json();

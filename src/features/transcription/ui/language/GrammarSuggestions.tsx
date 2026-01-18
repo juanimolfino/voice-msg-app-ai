@@ -1,4 +1,4 @@
-import { renderWithGreen } from "@/domain/text/highlightGreen";
+import { renderWithGreen } from "@/features/transcription/domain/text/highlightGreen";
 
 /**
  * UI para mostrar sugerencias gramaticales.

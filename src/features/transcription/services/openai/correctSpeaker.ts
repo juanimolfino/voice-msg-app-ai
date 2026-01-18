@@ -1,4 +1,4 @@
-import { openai } from "./client";
+import { openai } from "@/services/openai/client";
 
 /**
  * Corrige gramática de un hablante específico
