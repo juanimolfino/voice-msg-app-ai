@@ -1,4 +1,4 @@
-import { TranscriptionContainer } from "@/features/audio-conversation/TranscriptionContainer";
+import { TranscriptionContainer } from "@/features/transcription/ui/container/TranscriptionContainer";
 
 export default function Page() {
   return (

@@ -1,0 +1,8 @@
+| Concepto          | Qué es                            |
+| ----------------- | --------------------------------- |
+| `useRef`          | Memoria persistente sin re-render |
+| `MediaRecorder`   | API nativa para grabar            |
+| `chunk`           | Fragmento de audio                |
+| `Blob`            | Audio crudo                       |
+| `File`            | Blob listo para API               |
+| `createObjectURL` | Preview local                     |

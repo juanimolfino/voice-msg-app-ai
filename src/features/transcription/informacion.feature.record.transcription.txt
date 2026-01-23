@@ -1,0 +1,3 @@
+🧱 Regla base 
+
+“Si algo existe solo para transcribir audio y corregir texto → va dentro de features/transcription”

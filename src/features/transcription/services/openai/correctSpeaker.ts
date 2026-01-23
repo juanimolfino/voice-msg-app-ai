@@ -1,4 +1,4 @@
-import { openai } from "./client";
+import { openai } from "@/services/openai/client";
 
 /**
  * Corrige gramática de un hablante específico
@@ -24,7 +24,7 @@ Task:
 - Do NOT change the other speaker
 - Return TWO improved versions of the FULL conversation
 - Highlight ONLY the improved text using <green>...</green>
-- Use simple, natural English
+- Use simple, natural language that the person is speaking
 - Do NOT explain anything
 
 Format EXACTLY like this:
