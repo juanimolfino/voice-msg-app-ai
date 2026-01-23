@@ -7,11 +7,12 @@ import { Recorder } from "./recorder/Recorder";
 
 type Props = {
   onAudioReady: (file: File | null) => void;
+  disabled?: boolean;
 };
 
 type Source = "file" | "record";
 
-export function AudioSourceSelector({ onAudioReady }: Props) {
+export function AudioSourceSelector({ onAudioReady, disabled }: Props) {
   const [source, setSource] = useState<Source>("file");
 
   return (
@@ -47,7 +48,7 @@ export function AudioSourceSelector({ onAudioReady }: Props) {
       )}
 
       {source === "record" && (
-        <Recorder onAudioReady={onAudioReady} />
+        <Recorder onAudioReady={onAudioReady} disabled={disabled} />
       )}
     </div>
   );

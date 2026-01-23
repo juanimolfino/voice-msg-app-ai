@@ -13,11 +13,13 @@ import { GrammarSuggestions } from "@/features/transcription/ui/language/Grammar
 export function TranscriptionContainer() {
   const {
     audio,
-    setAudio,
-    conversation,
     rawText,
-    loading,
+    conversation,
+    status,
+    error,
+    onAudioReady,
     sendAudio,
+    discardAudio,
   } = useTranscription();
 
   const {
@@ -28,41 +30,51 @@ export function TranscriptionContainer() {
     correctGrammar,
   } = useGrammarCorrection(conversation);
 
+  /**
+   * URL para pre-escuchar el audio
+   * Solo existe si hay audio cargado
+   */
   const audioUrl = useMemo(() => {
     if (!audio) return null;
     return URL.createObjectURL(audio);
   }, [audio]);
 
-  const discardAudio = () => {
-    setAudio(null);
-  };
-
-   const handleSend = () => {
-    if (!audio) return;
-    sendAudio(audio);
-  };
-
-
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <AudioSourceSelector onAudioReady={setAudio} />
+      {/* =====================================
+          🟢 ESTADO: idle
+          No hay audio cargado
+          Acción posible: subir o grabar
+      ====================================== */}
+      {status === "idle" && (
+        <>
+          <p className="text-sm text-gray-500">
+            🎧 Subí un audio o grabá uno para empezar
+          </p>
 
-      {audioUrl && (
+          <AudioSourceSelector onAudioReady={onAudioReady} />
+        </>
+      )}
+
+      {/* =====================================
+          🟡 ESTADO: ready
+          Hay audio cargado
+          Acción posible: enviar o descartar
+      ====================================== */}
+      {status === "ready" && audioUrl && (
         <div className="space-y-2">
           <audio controls src={audioUrl} className="w-full" />
 
           <div className="flex gap-2">
             <button
-              onClick={handleSend}
-              disabled={loading || correcting || !audio}
-              className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-50"
+              onClick={sendAudio}
+              className="bg-indigo-600 text-white px-4 py-2 rounded"
             >
-              {loading ? "Transcribiendo..." : "Enviar a transcribir"}
+              Enviar a transcribir
             </button>
 
             <button
               onClick={discardAudio}
-              disabled={loading}
               className="bg-gray-200 px-4 py-2 rounded"
             >
               Descartar
@@ -71,18 +83,70 @@ export function TranscriptionContainer() {
         </div>
       )}
 
-      <ConversationView rawText={rawText} conversation={conversation} />
-
-      {conversation && (
-        <SpeakerSelector
-          speaker={selectedSpeaker}
-          onChange={setSelectedSpeaker}
-          onCorrect={correctGrammar}
-          loading={correcting}
-        />
+      {/* =====================================
+          🔵 ESTADO: sending
+          Audio enviado, esperando respuesta
+          No hay acciones posibles
+      ====================================== */}
+      {status === "sending" && (
+        <p className="text-sm text-gray-500">
+          🧠 Transcribiendo audio...
+        </p>
       )}
 
-      <GrammarSuggestions text={correction} />
+      {/* =====================================
+          🔴 ESTADO: error
+          Algo falló
+          Acción posible: descartar y volver a empezar
+      ====================================== */}
+      {status === "error" && (
+        <div className="space-y-2">
+          <p className="text-sm text-red-600">{error}</p>
+
+          <button
+            onClick={discardAudio}
+            className="bg-gray-200 px-4 py-2 rounded"
+          >
+            Volver a intentar
+          </button>
+        </div>
+      )}
+
+      {/* =====================================
+          🟣 ESTADO: done
+          Transcripción lista
+          Acciones de valor agregado
+      ====================================== */}
+      {status === "done" && (
+        <>
+          {/* Preview del audio transcripto */}
+          {audioUrl && (
+            <audio controls src={audioUrl} className="w-full" />
+          )}
+
+          <ConversationView
+            rawText={rawText}
+            conversation={conversation}
+          />
+
+          <SpeakerSelector
+            speaker={selectedSpeaker}
+            onChange={setSelectedSpeaker}
+            onCorrect={correctGrammar}
+            loading={correcting}
+          />
+
+          <GrammarSuggestions text={correction} />
+
+          {/* CTA final MVP */}
+          <button
+            onClick={discardAudio}
+            className="bg-gray-200 px-4 py-2 rounded"
+          >
+            Transcribir otro audio
+          </button>
+        </>
+      )}
     </div>
   );
 }

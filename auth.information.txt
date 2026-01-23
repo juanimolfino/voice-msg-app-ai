@@ -1,0 +1,107 @@
+Auth responde 3 preguntas básicas:
+
+¿Quién sos? → identidad
+
+¿Ya te conozco? → sesión
+
+¿Qué te dejo hacer? → permisos
+
+
+2️⃣ ¿Para qué sirve Auth en TU app?
+
+En tu caso, Auth NO es para seguridad primero, es para:
+
+🟢 Valor real
+
+Guardar conversaciones
+
+Historial personal
+
+Perfil de idioma
+
+Volver mañana y seguir
+
+👉 Si no hay eso, Auth no aporta valor todavía.
+
+
+4️⃣ Tipos de Auth (mental model simple)
+🟦 1. Identidad
+
+Cómo te identifico:
+
+Email magic link ✅ (ideal para tu app)
+
+Google / Apple (opcional)
+
+Passwords ❌ (evitarlos si se puede)
+
+🟦 2. Sesión
+
+Cómo te recuerdo:
+
+Cookie httpOnly (server-first, ideal)
+
+Token en localStorage ❌
+
+🟦 3. Autorización
+
+Qué podés hacer:
+
+¿es tu conversación?
+
+¿podés editarla?
+
+
+🧩 Cómo se ve Auth bien pensado en código
+6️⃣ Estados de Auth
+type AuthStatus =
+  | "anonymous"
+  | "loading"
+  | "authenticated"
+  | "error";
+
+
+7️⃣ Hook de Auth (conceptual)
+useAuth()
+├─ user
+├─ status
+├─ signIn()
+├─ signOut()
+
+
+👉 misma arquitectura mental que cualquier otro hook
+
+<AuthGate>
+  <TranscriptionContainer />
+</AuthGate>
+ Si hay usuario → historial + guardar
+
+ 
+ 
+9️⃣ DB + Auth (muy importante)
+
+Auth NO escribe lógica.
+Auth solo identifica.
+
+Después:
+
+user.id
+
+se lo pasás a:
+
+conversaciones
+
+audios
+
+correcciones
+
+🔟 Cuándo damos por “Auth listo” en el MVP
+
+Auth MVP está listo cuando:
+
+✔ Login con email
+✔ Persistir sesión
+✔ Asociar conversación a user
+✔ Logout
+
+Nada más.
