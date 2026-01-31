@@ -1,12 +1,34 @@
-export default function ConversationsPage() {
-    return (
-        <div className="min-h-screen bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <h1 className="text-3xl font-bold text-gray-900">Conversaciones</h1>
-                <p className="mt-4 text-gray-600">
-                    Aquí irá el contenido de conversaciones
-                </p>
-            </div>
-        </div>
-    );
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getConversationsByUser } from "@/lib/conversations/data";
+import Link from "next/link";
+
+export default async function ConversationsPage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return null; // middleware ya redirige
+  }
+
+  const conversations = await getConversationsByUser(session.user.id);
+
+  return (
+    <main>
+      <h1>Mis conversaciones</h1>
+
+      {conversations.length === 0 && (
+        <p>No tenés conversaciones todavía</p>
+      )}
+
+      <ul>
+        {conversations.map((c) => (
+          <li key={c.id}>
+            <Link href={`/conversations/${c.id}`}>
+              {c.title}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
 }

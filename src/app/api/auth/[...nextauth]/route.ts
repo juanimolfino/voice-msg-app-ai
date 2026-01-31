@@ -1,13 +1,13 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import EmailProvider from "next-auth/providers/email";
 import PostgresAdapter from "@auth/pg-adapter";
-import { pool } from "@/lib/db";
+import { db } from "@/lib/db";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const authOptions: NextAuthOptions = {
-  adapter: PostgresAdapter(pool),
+  adapter: PostgresAdapter(db),
   providers: [
     EmailProvider({
       from: process.env.EMAIL_FROM,
@@ -30,11 +30,14 @@ export const authOptions: NextAuthOptions = {
   // pages: {
   //   signIn: "/login",
   // },
-  // callbacks: {
-  //   async redirect({ baseUrl }) {
-  //     return baseUrl; // siempre "/"
-  //   },
-  // },
+  callbacks: {
+    async session({ session, user }) { // Añadir el id del usuario a la sesión desde la base de datos
+      if (session.user && user) {
+        session.user.id = user.id;
+      }
+      return session;
+    },
+  },
 };
 
 const handler = NextAuth(authOptions);
