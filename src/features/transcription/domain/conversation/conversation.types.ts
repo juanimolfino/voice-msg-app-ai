@@ -4,10 +4,42 @@
 
 export type Speaker = "A" | "B";
 
-export type Message = {
+/**
+ * Mensaje base dicho por una persona
+ */
+export type OriginalMessage = {
   speaker: Speaker;
   text: string;
 };
+
+/**
+ * Corrección gramatical (opcional)
+ */
+export type Correction = {
+  text: string;
+};
+
+/**
+ * Sugerencia alternativa (opcional)
+ */
+export type Suggestion = {
+  text: string;
+};
+
+/**
+ * Grupo lógico de mensajes
+ * (original + corrección + sugerencia)
+ */
+export type MessageGroup = {
+  groupId: string;
+  speaker: Speaker;
+
+  original: OriginalMessage;
+
+  correction?: Correction | null;
+  suggestion?: Suggestion | null;
+};
+
 
 
 // conversation.types.ts

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useTranscription } from "@/features/transcription/hooks/useTranscription";
 import { useGrammarCorrection } from "@/features/transcription/hooks/useGrammarCorrection";
@@ -8,9 +8,25 @@ import { useGrammarCorrection } from "@/features/transcription/hooks/useGrammarC
 import { AudioSourceSelector } from "@/features/transcription/ui/audio/AudioSourceSelector";
 import { ConversationView } from "@/features/transcription/ui/audio/ConversationView";
 import { SpeakerSelector } from "@/features/transcription/ui/audio/SpeakerSelector";
-import { GrammarSuggestions } from "@/features/transcription/ui/language/GrammarSuggestions";
+import { CorrectedConversationView } from "@/features/transcription/ui/language/CorrectedConversationView";
+
+type Speaker = "A" | "B";
+
+type CorrectedMessage = {
+  speaker: Speaker;
+  original: string;
+  correction: string | null;
+  suggestion: string | null;
+};
+
+type CorrectionResult = {
+  messages: CorrectedMessage[];
+};
 
 export function TranscriptionContainer() {
+  /**
+   * 🔹 Transcripción (NO TOCAR)
+   */
   const {
     audio,
     rawText,
@@ -22,49 +38,60 @@ export function TranscriptionContainer() {
     discardAudio,
   } = useTranscription();
 
-  const {
-    selectedSpeaker,
-    setSelectedSpeaker,
-    correcting,
-    correction,
-    correctGrammar,
-  } = useGrammarCorrection(conversation);
+  /**
+   * 🔹 Corrección AI
+   */
+  const { correctConversation, loading } = useGrammarCorrection();
+
+  const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker>("A");
+
+  const [correctionResult, setCorrectionResult] =
+    useState<CorrectionResult | null>(null);
 
   /**
-   * URL para pre-escuchar el audio
-   * Solo existe si hay audio cargado
+   * URL para escuchar audio
    */
   const audioUrl = useMemo(() => {
     if (!audio) return null;
     return URL.createObjectURL(audio);
   }, [audio]);
 
+  /**
+   * Acción: pedir corrección a la AI
+   */
+  async function onCorrect() {
+    if (!conversation) return;
+
+    const result = await correctConversation({
+      conversation,
+      language: "english",
+      level: "intermediate",
+      correct: {
+        // A: selectedSpeaker === "A",
+        // B: selectedSpeaker === "B",
+        A: true,
+        B: true,
+      },
+    });
+
+    setCorrectionResult(result);
+    console.log("TranscriptionContainer: AI correction result:", result);
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      {/* =====================================
-          🟢 ESTADO: idle
-          No hay audio cargado
-          Acción posible: subir o grabar
-      ====================================== */}
       {status === "idle" && (
         <>
           <p className="text-sm text-gray-500">
             🎧 Subí un audio o grabá uno para empezar
           </p>
-
           <AudioSourceSelector onAudioReady={onAudioReady} />
         </>
       )}
 
-      {/* =====================================
-          🟡 ESTADO: ready
-          Hay audio cargado
-          Acción posible: enviar o descartar
-      ====================================== */}
       {status === "ready" && audioUrl && (
         <div className="space-y-2">
           <audio controls src={audioUrl} className="w-full" />
-
           <div className="flex gap-2">
             <button
               onClick={sendAudio}
@@ -72,7 +99,6 @@ export function TranscriptionContainer() {
             >
               Enviar a transcribir
             </button>
-
             <button
               onClick={discardAudio}
               className="bg-gray-200 px-4 py-2 rounded"
@@ -83,26 +109,13 @@ export function TranscriptionContainer() {
         </div>
       )}
 
-      {/* =====================================
-          🔵 ESTADO: sending
-          Audio enviado, esperando respuesta
-          No hay acciones posibles
-      ====================================== */}
       {status === "sending" && (
-        <p className="text-sm text-gray-500">
-          🧠 Transcribiendo audio...
-        </p>
+        <p className="text-sm text-gray-500">🧠 Transcribiendo audio...</p>
       )}
 
-      {/* =====================================
-          🔴 ESTADO: error
-          Algo falló
-          Acción posible: descartar y volver a empezar
-      ====================================== */}
       {status === "error" && (
         <div className="space-y-2">
           <p className="text-sm text-red-600">{error}</p>
-
           <button
             onClick={discardAudio}
             className="bg-gray-200 px-4 py-2 rounded"
@@ -112,35 +125,28 @@ export function TranscriptionContainer() {
         </div>
       )}
 
-      {/* =====================================
-          🟣 ESTADO: done
-          Transcripción lista
-          Acciones de valor agregado
-      ====================================== */}
       {status === "done" && (
         <>
-          {/* Preview del audio transcripto */}
-          {audioUrl && (
-            <audio controls src={audioUrl} className="w-full" />
-          )}
+          {audioUrl && <audio controls src={audioUrl} className="w-full" />}
 
-          <ConversationView
-            rawText={rawText}
-            conversation={conversation}
-          />
+          <ConversationView rawText={rawText} conversation={conversation} />
 
           <SpeakerSelector
             speaker={selectedSpeaker}
             onChange={setSelectedSpeaker}
-            onCorrect={correctGrammar}
-            loading={correcting}
+            onCorrect={onCorrect}
+            loading={loading}
           />
 
-          <GrammarSuggestions text={correction} />
+          {correctionResult && (
+            <CorrectedConversationView messages={correctionResult.messages} />
+          )}
 
-          {/* CTA final MVP */}
           <button
-            onClick={discardAudio}
+            onClick={() => {
+              discardAudio()
+              setCorrectionResult(null)
+            }}
             className="bg-gray-200 px-4 py-2 rounded"
           >
             Transcribir otro audio
