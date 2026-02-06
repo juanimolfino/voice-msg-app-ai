@@ -14,3 +14,9 @@ export type DiarizedTranscription = {
   text: string;
   segments: DiarizedSegment[];
 };
+
+export type AnalyzeConversationInput = {
+  language: string;
+  level: "beginner" | "intermediate" | "advanced";
+  conversation: string;
+};

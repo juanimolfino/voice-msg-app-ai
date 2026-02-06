@@ -1,39 +1,56 @@
-"use client";
-
 import { useState } from "react";
 
-/**
- * Maneja corrección gramatical por hablante.
- */
+type Speaker = "A" | "B";
 
-export function useGrammarCorrection(conversation: string) {
-  const [selectedSpeaker, setSelectedSpeaker] = useState<"A" | "B">("A");
-  const [correction, setCorrection] = useState("");
-  const [correcting, setCorrecting] = useState(false);
+export type CorrectedMessage = {
+  speaker: Speaker;
+  original: string;
+  correction: string | null;
+  suggestion: string | null;
+};
 
-  async function correctGrammar() {
-    setCorrecting(true);
-    setCorrection("");
+export type CorrectionResult = {
+  messages: CorrectedMessage[];
+};
 
-    const res = await fetch("/api/correct-speaker", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        speaker: selectedSpeaker,
-        conversation,
-      }),
-    });
+export function useGrammarCorrection() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const data = await res.json();
-    setCorrection(data.result);
-    setCorrecting(false);
+  async function correctConversation(input: {
+    conversation: string;
+    language: string;
+    level: "beginner" | "intermediate" | "advanced";
+    correct: { A: boolean; B: boolean };
+  }): Promise<CorrectionResult> {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/correct-conversation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to correct conversation");
+      }
+
+      const json = await res.json();
+
+      return json;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   }
 
   return {
-    selectedSpeaker,
-    setSelectedSpeaker,
-    correction,
-    correcting,
-    correctGrammar,
+    correctConversation,
+    loading,
+    error,
   };
 }
