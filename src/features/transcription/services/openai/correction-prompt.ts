@@ -1,4 +1,4 @@
-// type Speaker = "A" | "B";
+
 
 // export function buildCorrectionPrompt(input: {
 //   language: string;
@@ -46,7 +46,7 @@
 //   .map((m) => `Speaker ${m.speaker}: ${m.text}`)
 //   .join("\n")}
 // `;
-// }
+// } // open ai
 
 export function buildCorrectionPrompt(input: {
   conversation: string;
@@ -55,27 +55,40 @@ export function buildCorrectionPrompt(input: {
   correct: { A: boolean; B: boolean };
 }) {
   return `
-You are a ${input.language} grammar checker.
+You are a strict ${input.language} grammar checker for ${input.level} level students.
 
-Your job is to detect ONLY objective grammar errors. But you MUST to keep the same conversation, only correcting the sentences of the speakers that are enabled for correction. Also, you can provide suggestions if they add value, but they are optional.
-
-Language level: ${input.level}
+Analyze the FULL CONVERSATION CONTEXT before correcting. Pay special attention to:
+- Verb tense consistency throughout the dialogue
+- Subject-verb agreement across turns
+- Pronoun references (he/she/it/they) matching previous mentions
+- Time expressions (yesterday, tomorrow, now) matching verb tenses
+- Question formation (word order: Why are you...? not Why you are...?)
 
 Conversation:
 """
 ${input.conversation}
 """
 
-STRICT RULES (VERY IMPORTANT):
-- Correct ONLY objective grammar errors (wrong tense, wrong word, pluralization, agreement).
-- If a sentence is understandable and natural, correction MUST be null.
-- Suggestions are OPTIONAL and ONLY if they keep EXACT meaning, but it has to be a valid alternative.
-- NEVER rephrase questions into different intentions.
-- NEVER invent mistakes.\
+STRICT RULES:
 
-Speaker correction rules:
-- Speaker A: ${input.correct.A ? "CAN be corrected" : "MUST NEVER be corrected"}
-- Speaker B: ${input.correct.B ? "CAN be corrected" : "MUST NEVER be corrected"}
+**CONTEXT-AWARE CORRECTIONS:**
+- Read the entire conversation first, then correct
+- If Speaker A says "yesterday", Speaker B's response must use past tense
+- If discussing a past event, maintain past tense consistency
+- "Why you are..." → "Why are you..." (question word order)
+- "there's many" → "there are many" (plural agreement)
+- "we and you and I" → "you and I" (remove redundant pronouns)
+
+**For SUGGESTIONS:**
+- Provide when the sentence is correct but could be more natural/idiomatic
+- Suggest vocabulary slightly above ${input.level} level to help improvement
+- Examples:
+  - "Good." → "I'm doing great, thanks!"
+  - "Why are you so beautiful?" → "What makes you so beautiful?"
+
+**Speaker rules:**
+- Speaker A: ${input.correct.A ? "CAN be corrected and suggested" : "MUST NEVER be corrected or suggested"}
+- Speaker B: ${input.correct.B ? "CAN be corrected and suggested" : "MUST NEVER be corrected or suggested"}
 
 Output format (JSON ONLY):
 
@@ -85,20 +98,19 @@ Output format (JSON ONLY):
       "speaker": "A | B",
       "original": "original sentence EXACT",
       "correction": "corrected sentence or null",
-      "suggestion": "alternative sentence with SAME meaning or null"
+      "suggestion": "more natural alternative or null"
     }
   ]
 }
 
 FINAL RULES:
-- Keep original text EXACT
-- Preserve order
-- If unsure, DO NOT correct
+- Keep original text EXACT - copy-paste it
+- Preserve order of messages
+- If unsure, DO NOT correct (set null)
+- Suggestion must be DIFFERENT from correction
 - Return ONLY valid JSON
 - No text before or after JSON
 - Use null, not ""
-- Do not explain anything
-
 `;
 }
 

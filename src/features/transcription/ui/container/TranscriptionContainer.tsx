@@ -10,7 +10,7 @@ import { ConversationView } from "@/features/transcription/ui/audio/Conversation
 import { SpeakerSelector } from "@/features/transcription/ui/audio/SpeakerSelector";
 import { CorrectedConversationView } from "@/features/transcription/ui/language/CorrectedConversationView";
 
-type Speaker = "A" | "B";
+import { Speaker } from "../../domain/conversation/conversation.types";
 
 type CorrectedMessage = {
   speaker: Speaker;

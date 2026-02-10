@@ -2,9 +2,11 @@
  * UI para seleccionar hablante y disparar corrección gramatical
  */
 
+import { Speaker } from "../../domain/conversation/conversation.types";
+
 type Props = {
-  speaker: "A" | "B";
-  onChange: (speaker: "A" | "B") => void;
+  speaker: Speaker;
+  onChange: (speaker: Speaker) => void;
   onCorrect: () => void;
   loading: boolean;
 };
@@ -19,11 +21,12 @@ export function SpeakerSelector({
     <div className="flex gap-2 items-center">
       <select
         value={speaker}
-        onChange={(e) => onChange(e.target.value as "A" | "B")}
+        onChange={(e) => onChange(e.target.value as Speaker)}
         className="border p-2 rounded text-black"
       >
         <option value="A">Persona A</option>
         <option value="B">Persona B</option>
+        <option value="Z">Ambos</option>
       </select>
 
       <button

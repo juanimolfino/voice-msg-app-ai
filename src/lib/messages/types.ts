@@ -1,4 +1,4 @@
-export type Speaker = "A" | "B";
+import { Speaker } from "../../../src/features/transcription/domain/conversation/conversation.types";
 
 export type MessageKind = "original" | "correction" | "suggestion";
 

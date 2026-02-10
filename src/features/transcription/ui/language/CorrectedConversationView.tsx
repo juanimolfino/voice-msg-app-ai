@@ -1,6 +1,6 @@
 "use client";
 
-type Speaker = "A" | "B";
+import { Speaker } from "../../domain/conversation/conversation.types";
 
 type CorrectedMessage = {
   speaker: Speaker;
