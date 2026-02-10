@@ -1,6 +1,5 @@
 import { useState } from "react";
-
-type Speaker = "A" | "B";
+import { Speaker } from "../domain/conversation/conversation.types";
 
 export type CorrectedMessage = {
   speaker: Speaker;

@@ -1,5 +1,6 @@
 import { buildCorrectionPrompt } from "./correction-prompt";
-import { openai } from "@/services/openai/client";
+// import { openai } from "@/services/openai/client"; // ❌ ELIMINADO: OpenAI client
+import { kimiChatCompletion } from "../kimi/client"; // ✅ NUEVO: Kimi client
 
 //* 🧼 Regla de oro
 // Services → devuelven objetos
@@ -24,91 +25,43 @@ export async function correctSpeakerGrammar(input: {
     correct,
   });
 
-  //    console.log("open ai services: Correction prompt:", prompt);
-
   try {
-    const response = await openai.responses.create({
-  model: "gpt-4.1-mini",
-        temperature: 0.2,
-        
-  input: [
-    {
-      role: "user",
-      content: prompt,
-    },
-  ],
+    // ✅ NUEVO: Usar Kimi API en lugar de OpenAI
+    const response = await kimiChatCompletion({
+      model: "kimi-k2-0711-preview", // Kimi 2.5 - excelente para correcciones gramaticales
+      // Alternativas: "kimi-latest" (siempre último), "kimi-k1" (razonamiento profundo)
+      temperature: 0.2, // Bajo para consistencia en formato JSON
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      response_format: { type: "json_object" }, // ✅ NUEVO: Forzar JSON estricto (más confiable que OpenAI)
+    });
 
-//   response_format: {
-//     type: "json_schema",
-//     json_schema: {
-//       name: "grammar_correction",
-//       schema: {
-//         type: "object",
-//         properties: {
-//           messages: {
-//             type: "array",
-//             items: {
-//               type: "object",
-//               properties: {
-//                 speaker: { type: "string" },
-//                 original: { type: "string" },
-//                 correction: { type: ["string", "null"] },
-//                 suggestion: { type: ["string", "null"] },
-//               },
-//               required: ["speaker", "original", "correction", "suggestion"],
-//             },
-//           },
-//         },
-//         required: ["messages"],
-//       },
-//     },
-//   } as any,
-});
+    console.log("Kimi API response status:", response.choices[0]?.finish_reason);
 
+    // ✅ NUEVO: Extraer contenido de la respuesta de Kimi
+    const text = response.choices[0]?.message?.content;
 
-    console.log("response chat gpt status", response);
-    //   if (response.status) {
-    //     throw new Error("Missing required fields");
-    //   }
-
-    const text = response.output_text;
-   // const json = response.output_parsed;
+    if (!text) {
+      throw new Error("Empty response from Kimi API");
+    }
 
     const json = JSON.parse(text);
 
-    if (!json) {
-      throw new Error("Response was not valid JSON");
+    if (!json || !json.messages) {
+      throw new Error("Response missing required fields");
     }
 
     return json;
   } catch (err) {
     console.error("AI correction error:", err);
-    throw new Error("Response was not valid JSON");
+    // Diferenciar errores de parsing vs API
+    if (err instanceof SyntaxError) {
+      throw new Error("Response was not valid JSON");
+    }
+    throw err;
   }
 }
-
-//       response_format: {
-//   type: "json_schema",
-//   json_schema: {
-//     name: "GrammarCorrection",
-//     schema: {
-//       type: "object",
-//       properties: {
-//         messages: {
-//           type: "array",
-//           items: {
-//             type: "object",
-//             properties: {
-//               speaker: { enum: ["A", "B"] },
-//               original: { type: "string" },
-//               correction: { type: ["string", "null"] },
-//               suggestion: { type: ["string", "null"] }
-//             },
-//             required: ["speaker", "original", "correction", "suggestion"]
-//           }
-//         }
-//       },
-//       required: ["messages"]
-//     }
-//   }
-// }

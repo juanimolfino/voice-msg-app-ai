@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { correctSpeakerGrammar } from "@/features/transcription/services/openai/correctConversation";
 
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
