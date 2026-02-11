@@ -53,6 +53,13 @@ export type CorrectionResult = {
 };
 
 
+export type Conversation = {
+  id: string;
+  title: string;
+  created_at: string;
+};
+
+
 
 // conversation.types.ts
 

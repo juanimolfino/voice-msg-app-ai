@@ -1,10 +1,10 @@
 //  SOLO lecturas (SELECT)
 
 import { db } from "@/lib/db";
-import { Conversation } from "./types";
+import { Conversation } from "@/features/transcription/domain/conversation/conversation.types";
 
 export async function getConversationsByUser(
-  userId: string
+  userId: string,
 ): Promise<Conversation[]> {
   const result = await db.query(
     `
@@ -13,7 +13,7 @@ export async function getConversationsByUser(
     WHERE user_id = $1
     ORDER BY created_at DESC
     `,
-    [userId]
+    [userId],
   );
 
   return result.rows;
