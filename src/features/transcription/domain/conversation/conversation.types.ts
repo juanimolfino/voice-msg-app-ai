@@ -2,7 +2,7 @@
  * Modelos del dominio conversación
  */
 
-export type Speaker = "A" | "B";
+export type Speaker = "A" | "B" | "Z"; // Z = ambos, para correcciones generales
 
 /**
  * Mensaje base dicho por una persona
@@ -38,6 +38,18 @@ export type MessageGroup = {
 
   correction?: Correction | null;
   suggestion?: Suggestion | null;
+};
+
+// corrección de toda la conversación
+export type CorrectedMessage = {
+  speaker: Speaker;
+  original: string;
+  correction: string | null;
+  suggestion: string | null;
+};
+
+export type CorrectionResult = {
+  messages: CorrectedMessage[];
 };
 
 

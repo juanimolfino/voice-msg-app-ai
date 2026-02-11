@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+
+import {
+  saveSession,
+  loadSession,
+  clearSession,
+} from "@/lib/localstorage/localsession";
 
 import { useTranscription } from "@/features/transcription/hooks/useTranscription";
 import { useGrammarCorrection } from "@/features/transcription/hooks/useGrammarCorrection";
@@ -10,18 +16,10 @@ import { ConversationView } from "@/features/transcription/ui/audio/Conversation
 import { SpeakerSelector } from "@/features/transcription/ui/audio/SpeakerSelector";
 import { CorrectedConversationView } from "@/features/transcription/ui/language/CorrectedConversationView";
 
-import { Speaker } from "../../domain/conversation/conversation.types";
-
-type CorrectedMessage = {
-  speaker: Speaker;
-  original: string;
-  correction: string | null;
-  suggestion: string | null;
-};
-
-type CorrectionResult = {
-  messages: CorrectedMessage[];
-};
+import {
+  Speaker,
+  CorrectionResult,
+} from "../../domain/conversation/conversation.types";
 
 export function TranscriptionContainer() {
   /**
@@ -36,6 +34,7 @@ export function TranscriptionContainer() {
     onAudioReady,
     sendAudio,
     discardAudio,
+    restoreSession,
   } = useTranscription();
 
   /**
@@ -47,6 +46,42 @@ export function TranscriptionContainer() {
 
   const [correctionResult, setCorrectionResult] =
     useState<CorrectionResult | null>(null);
+
+  const isRestoringRef = useRef(true);
+
+  useEffect(() => {
+    const stored = loadSession();
+    if (!stored) {
+      isRestoringRef.current = false;
+      return;
+    }
+
+    console.log("Restoring session from localStorage", stored);
+
+    if (stored.rawText) {
+      restoreSession({
+        rawText: stored.rawText,
+        conversation: stored.conversation,
+      });
+      setCorrectionResult(stored.correctionResult);
+    }
+    // 🔑 importante
+    setTimeout(() => {
+      isRestoringRef.current = false;
+    }, 0);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!conversation && !correctionResult) return;
+    if (isRestoringRef.current) return;
+
+    saveSession({
+      rawText,
+      conversation,
+      correctionResult,
+    });
+  }, [rawText, conversation, correctionResult]);
 
   /**
    * URL para escuchar audio
@@ -100,7 +135,11 @@ export function TranscriptionContainer() {
               Enviar a transcribir
             </button>
             <button
-              onClick={discardAudio}
+              onClick={() => {
+                discardAudio();
+                clearSession();
+                setCorrectionResult(null);
+              }}
               className="bg-gray-200 px-4 py-2 rounded"
             >
               Descartar
@@ -117,7 +156,11 @@ export function TranscriptionContainer() {
         <div className="space-y-2">
           <p className="text-sm text-red-600">{error}</p>
           <button
-            onClick={discardAudio}
+            onClick={() => {
+              discardAudio();
+              clearSession();
+              setCorrectionResult(null);
+            }}
             className="bg-gray-200 px-4 py-2 rounded"
           >
             Volver a intentar
@@ -144,8 +187,9 @@ export function TranscriptionContainer() {
 
           <button
             onClick={() => {
-              discardAudio()
-              setCorrectionResult(null)
+              discardAudio();
+              clearSession();
+              setCorrectionResult(null);
             }}
             className="bg-gray-200 px-4 py-2 rounded"
           >

@@ -3,8 +3,8 @@
  */
 
 type Props = {
-  rawText: string;
-  conversation: string;
+  rawText: string | null;
+  conversation: string | null;
 };
 
 export function ConversationView({ rawText, conversation }: Props) {
