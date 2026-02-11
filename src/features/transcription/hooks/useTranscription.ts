@@ -27,8 +27,8 @@ export type TranscriptionStatus = // 🔵 Estados del hook (useTranscription)
 
 export function useTranscription() {
   const [audio, setAudio] = useState<File | null>(null);
-  const [rawText, setRawText] = useState("");
-  const [conversation, setConversation] = useState("");
+  const [rawText, setRawText] = useState<string | null>("");
+  const [conversation, setConversation] = useState<string | null>("");
   const [status, setStatus] = useState<TranscriptionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -88,6 +88,24 @@ export function useTranscription() {
     setStatus(file ? "ready" : "idle");
   }
 
+   /**
+   * se usa para restaurar la sesión desde el localStorage al cargar el componente. Recibe un objeto con rawText y conversation, y los setea en el estado. Si hay conversación, también setea el status a "done".
+   */
+  function restoreSession(data: {
+  rawText: string | null;
+  conversation: string | null;
+}) {
+  if (!data) return;
+
+  if (data.rawText) setRawText(data.rawText);
+  if (data.conversation) setConversation(data.conversation);
+
+  if (data.conversation) {
+    setStatus("done");
+  }
+}
+
+
   return {
     // estado
     audio,
@@ -100,5 +118,6 @@ export function useTranscription() {
     onAudioReady,
     sendAudio,
     discardAudio,
+    restoreSession
   };
 }

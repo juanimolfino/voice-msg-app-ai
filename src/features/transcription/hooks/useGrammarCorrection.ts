@@ -1,16 +1,7 @@
 import { useState } from "react";
-import { Speaker } from "../domain/conversation/conversation.types";
+import { CorrectionResult } from "../domain/conversation/conversation.types";
 
-export type CorrectedMessage = {
-  speaker: Speaker;
-  original: string;
-  correction: string | null;
-  suggestion: string | null;
-};
 
-export type CorrectionResult = {
-  messages: CorrectedMessage[];
-};
 
 export function useGrammarCorrection() {
   const [loading, setLoading] = useState(false);
