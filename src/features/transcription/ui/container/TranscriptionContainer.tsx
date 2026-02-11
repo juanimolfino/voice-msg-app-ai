@@ -1,12 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
-
-import {
-  saveSession,
-  loadSession,
-  clearSession,
-} from "@/lib/localstorage/localsession";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { usePersistentSession } from "../../hooks/usePersistentSession";
 
 import { useTranscription } from "@/features/transcription/hooks/useTranscription";
 import { useGrammarCorrection } from "@/features/transcription/hooks/useGrammarCorrection";
@@ -21,10 +16,12 @@ import {
   CorrectionResult,
 } from "../../domain/conversation/conversation.types";
 
+const SESSION_KEY = "transcription-session";
+
 export function TranscriptionContainer() {
-  /**
-   * 🔹 Transcripción (NO TOCAR)
-   */
+  const { isRestored, restoredData, save, clear } = usePersistentSession(SESSION_KEY);
+  const skipNextSaveRef = useRef(false);
+
   const {
     audio,
     rawText,
@@ -37,81 +34,75 @@ export function TranscriptionContainer() {
     restoreSession,
   } = useTranscription();
 
-  /**
-   * 🔹 Corrección AI
-   */
   const { correctConversation, loading } = useGrammarCorrection();
 
   const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker>("A");
+  const [correctionResult, setCorrectionResult] = useState<CorrectionResult | null>(null);
 
-  const [correctionResult, setCorrectionResult] =
-    useState<CorrectionResult | null>(null);
-
-  const isRestoringRef = useRef(true);
-
+  // Efecto de restauración
   useEffect(() => {
-    const stored = loadSession();
-    if (!stored) {
-      isRestoringRef.current = false;
+    if (!isRestored || !restoredData) return;
+    
+    skipNextSaveRef.current = true;
+    
+    if (restoredData.rawText) {
+      restoreSession({
+        rawText: restoredData.rawText,
+        conversation: restoredData.conversation,
+      });
+      setCorrectionResult(restoredData.correctionResult);
+    }
+  }, [isRestored, restoredData, restoreSession]);
+
+  // Efecto de guardado
+  useEffect(() => {
+    if (!isRestored) return;
+    if (!conversation && !correctionResult) return;
+    
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
       return;
     }
 
-    console.log("Restoring session from localStorage", stored);
+    save({ rawText, conversation, correctionResult });
+  }, [rawText, conversation, correctionResult, isRestored, save]);
 
-    if (stored.rawText) {
-      restoreSession({
-        rawText: stored.rawText,
-        conversation: stored.conversation,
-      });
-      setCorrectionResult(stored.correctionResult);
-    }
-    // 🔑 importante
-    setTimeout(() => {
-      isRestoringRef.current = false;
-    }, 0);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!conversation && !correctionResult) return;
-    if (isRestoringRef.current) return;
-
-    saveSession({
-      rawText,
-      conversation,
-      correctionResult,
-    });
-  }, [rawText, conversation, correctionResult]);
-
-  /**
-   * URL para escuchar audio
-   */
+  // URL del audio memoizada
   const audioUrl = useMemo(() => {
     if (!audio) return null;
     return URL.createObjectURL(audio);
   }, [audio]);
 
-  /**
-   * Acción: pedir corrección a la AI
-   */
-  async function onCorrect() {
+  // 🔹 Handler unificado de reset - MEMOIZADO
+  const handleReset = useCallback(() => {
+    discardAudio();
+    clear();
+    setCorrectionResult(null);
+  }, [discardAudio, clear]); // dependencias: funciones del hook que no cambian
+
+  // 🔹 Handler de corrección - MEMOIZADO
+  const handleCorrect = useCallback(async () => {
     if (!conversation) return;
 
     const result = await correctConversation({
       conversation,
       language: "english",
       level: "intermediate",
-      correct: {
-        // A: selectedSpeaker === "A",
-        // B: selectedSpeaker === "B",
-        A: true,
-        B: true,
-      },
+      correct: { A: true, B: true },
     });
 
     setCorrectionResult(result);
-    console.log("TranscriptionContainer: AI correction result:", result);
-  }
+  }, [conversation, correctConversation]); // dependencias: conversation y el hook
+
+  // 🔹 Handler de enviar audio - MEMOIZADO
+  const handleSendAudio = useCallback(() => {
+    sendAudio();
+  }, [sendAudio]);
+
+  // Debug de status (podemos sacarlo después)
+  useEffect(() => {
+    console.log("📊 Status cambió a:", status);
+  }, [status]);
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -129,17 +120,13 @@ export function TranscriptionContainer() {
           <audio controls src={audioUrl} className="w-full" />
           <div className="flex gap-2">
             <button
-              onClick={sendAudio}
+              onClick={handleSendAudio}  // ← ahora es estable
               className="bg-indigo-600 text-white px-4 py-2 rounded"
             >
               Enviar a transcribir
             </button>
             <button
-              onClick={() => {
-                discardAudio();
-                clearSession();
-                setCorrectionResult(null);
-              }}
+              onClick={handleReset}  // ← ahora es estable
               className="bg-gray-200 px-4 py-2 rounded"
             >
               Descartar
@@ -156,11 +143,7 @@ export function TranscriptionContainer() {
         <div className="space-y-2">
           <p className="text-sm text-red-600">{error}</p>
           <button
-            onClick={() => {
-              discardAudio();
-              clearSession();
-              setCorrectionResult(null);
-            }}
+            onClick={handleReset}
             className="bg-gray-200 px-4 py-2 rounded"
           >
             Volver a intentar
@@ -176,8 +159,8 @@ export function TranscriptionContainer() {
 
           <SpeakerSelector
             speaker={selectedSpeaker}
-            onChange={setSelectedSpeaker}
-            onCorrect={onCorrect}
+            onChange={setSelectedSpeaker}  // ← esto también podría memoizarse si fuera necesario
+            onCorrect={handleCorrect}  // ← ahora es estable
             loading={loading}
           />
 
@@ -186,11 +169,7 @@ export function TranscriptionContainer() {
           )}
 
           <button
-            onClick={() => {
-              discardAudio();
-              clearSession();
-              setCorrectionResult(null);
-            }}
+            onClick={handleReset}
             className="bg-gray-200 px-4 py-2 rounded"
           >
             Transcribir otro audio
