@@ -1,5 +1,5 @@
 import { openai } from "@/services/openai/client";
-import { DiarizedTranscription } from "@/features/transcription/types/openai";
+import { DiarizedTranscription } from "@/services/openai/types/openai";
 
 /**
  * Llama a OpenAI para STT con diarización

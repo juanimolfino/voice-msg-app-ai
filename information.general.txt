@@ -1,3 +1,14 @@
+[Graba/Sube audio] → [Transcribe] → [Corrige con Kimi] → [Vista previa]
+                                                          ↓
+                                              [Deshacer] ←→ [Guardar]
+                                                  ↓              ↓
+                                            Limpia todo    POST /api/conversations
+                                                           Guarda en DB
+                                                           Limpia localStorage
+                                                           Toast "Guardado"
+                                                           Redirect a ?
+
+
 Primero: qué tipo de app es la tuya.
 
 🎯 Una app de aprendizaje de idiomas basada en conversaciones reales

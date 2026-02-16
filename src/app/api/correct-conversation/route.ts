@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { correctSpeakerGrammar } from "@/features/transcription/services/openai/correctConversation";
+import { correctSpeakerGrammar } from "@/features/transcription/services/kimi/correctConversation";
 
 export const runtime = "nodejs";
 

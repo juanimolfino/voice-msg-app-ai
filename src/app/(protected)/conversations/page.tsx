@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getConversationsByUser } from "@/lib/conversations/data";
+import { getConversationsByUser } from "@/features/transcription/lib/conversations/data";
 import Link from "next/link";
 
 export default async function ConversationsPage() {

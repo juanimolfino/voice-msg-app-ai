@@ -1,8 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getMessagesByConversationId } from "@/lib/messages/data";
-import { Message } from "@/lib/messages/types";
+import { getMessagesByConversationId } from "@/features/transcription/lib/messages/data";
+import { Message } from "@/features/transcription/lib/messages/types";
 
 /* -----------------------------
    Utils

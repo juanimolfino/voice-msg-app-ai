@@ -1,6 +1,6 @@
-import { buildCorrectionPrompt } from "./correction-prompt";
+import { buildCorrectionPrompt } from "../prompts/correction-prompt";
 // import { openai } from "@/services/openai/client"; // ❌ ELIMINADO: OpenAI client
-import { kimiChatCompletion } from "../kimi/client"; // ✅ NUEVO: Kimi client
+import { kimiChatCompletion } from "../../../../services/kimi/client"; // ✅ NUEVO: Kimi client
 
 //* 🧼 Regla de oro
 // Services → devuelven objetos
@@ -24,6 +24,8 @@ export async function correctSpeakerGrammar(input: {
     level,
     correct,
   });
+
+  console.log("Generated prompt for AI correction:", prompt);
 
   try {
     // ✅ NUEVO: Usar Kimi API en lugar de OpenAI
