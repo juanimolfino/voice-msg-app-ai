@@ -60,6 +60,30 @@ export type Conversation = {
 };
 
 
+/**
+ * Estados posibles del flujo de transcripción
+ */
+export type TranscriptionStatus = // 🔵 Estados del hook (useTranscription)
+
+// Representan el flujo del negocio:
+
+// hay o no audio seleccionado
+
+// se está enviando a la API
+
+// hay resultado
+
+// hubo error de transcripción
+
+// Son globales al feature.
+
+  | "idle"        // no hay audio
+  | "ready"       // hay audio cargado
+  | "sending"     // enviando a la API
+  | "done"        // transcripción lista
+  | "error";      // algo falló
+
+
 
 // conversation.types.ts
 

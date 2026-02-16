@@ -1,6 +1,5 @@
 /**
  * Kimi API client (Moonshot AI)
- * Reemplaza OpenAI para correcciones gramaticales
  * Documentación: https://platform.moonshot.cn/docs
  */
 

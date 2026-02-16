@@ -1,7 +1,7 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import EmailProvider from "next-auth/providers/email";
 import PostgresAdapter from "@auth/pg-adapter";
-import { db } from "@/lib/db";
+import { db } from "@/services/database/db";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);

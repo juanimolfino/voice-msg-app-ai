@@ -1,7 +1,7 @@
 // mutaciones (INSERT / UPDATE / DELETE)
 "use server";
 
-import { db } from "@/lib/db";
+import { db } from "@/services/database/db";
 
 export async function createConversation({
   userId,

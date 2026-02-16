@@ -1,6 +1,6 @@
 //  SOLO lecturas (SELECT)
 
-import { db } from "@/lib/db";
+import { db } from "@/services/database/db";
 import { Conversation } from "@/features/transcription/domain/conversation/conversation.types";
 
 export async function getConversationsByUser(

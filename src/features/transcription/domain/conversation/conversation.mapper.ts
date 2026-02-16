@@ -1,4 +1,4 @@
-import { DiarizedSegment } from "@/features/transcription/types/openai";
+import { DiarizedSegment } from "@/services/openai/types/openai";
 import { Speaker } from "./conversation.types";
 
 /**
@@ -14,10 +14,6 @@ Tu app trata de:
 
 👉 Eso es tu domain
 
-
-mapDiarizedToConversation
-👉 Traduce algo técnico (OpenAI)
-👉 a algo que tu app entiende
 
 
 📌 OpenAI habla así:
@@ -35,6 +31,10 @@ Persona A:
 
 
  */
+
+// mapDiarizedToConversation
+// 👉 Traduce algo técnico (OpenAI)
+// 👉 a algo que tu app entiende
 
 export function mapDiarizedToConversation(
   segments: DiarizedSegment[]

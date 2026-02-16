@@ -10,8 +10,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-import { getConversationsByUser } from "@/lib/conversations/data";
-import { createConversation } from "@/lib/conversations/actions";
+import { getConversationsByUser } from "@/features/transcription/lib/conversations/data";
+import { createConversation } from "@/features/transcription/lib/conversations/actions";
 
 /* ================= GET ================= */
 export async function GET() {
