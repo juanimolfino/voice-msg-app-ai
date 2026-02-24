@@ -1,16 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { TranscriptionStatus } from '../domain/conversation/conversation.types';
+import { useState, useEffect } from "react";
+import { TranscriptionStatus } from "../domain/conversation/conversation.types";
+import { sessionEvents } from "@/services/events/sessionEvents";
 
 export function useTranscription() {
-
   // estados
   const [audio, setAudio] = useState<File | null>(null);
   const [rawText, setRawText] = useState<string | null>("");
   const [conversation, setConversation] = useState<string | null>("");
   const [status, setStatus] = useState<TranscriptionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // NUEVO: Escuchar cuando se limpia la sesión
+  useEffect(() => {
+    const cleanup = sessionEvents.on("session:cleared", () => {
+      setAudio(null);
+      setRawText("");
+      setConversation("");
+      setError(null);
+      setStatus("idle");
+    });
+
+    return cleanup;
+  }, []);
 
   /**
    * Se llama cuando el usuario confirma que quiere transcribir
@@ -43,9 +56,7 @@ export function useTranscription() {
       setStatus("done");
     } catch (err) {
       setStatus("error");
-      setError(
-        err instanceof Error ? err.message : "Error desconocido"
-      );
+      setError(err instanceof Error ? err.message : "Error desconocido");
     }
   }
 
@@ -68,23 +79,22 @@ export function useTranscription() {
     setStatus(file ? "ready" : "idle");
   }
 
-   /**
+  /**
    * se usa para restaurar la sesión desde el localStorage al cargar el componente. Recibe un objeto con rawText y conversation, y los setea en el estado. Si hay conversación, también setea el status a "done".
    */
   function restoreSession(data: {
-  rawText: string | null;
-  conversation: string | null;
-}) {
-  if (!data) return;
+    rawText: string | null;
+    conversation: string | null;
+  }) {
+    if (!data) return;
 
-  if (data.rawText) setRawText(data.rawText);
-  if (data.conversation) setConversation(data.conversation);
+    if (data.rawText) setRawText(data.rawText);
+    if (data.conversation) setConversation(data.conversation);
 
-  if (data.conversation) {
-    setStatus("done");
+    if (data.conversation) {
+      setStatus("done");
+    }
   }
-}
-
 
   return {
     // estado
@@ -98,6 +108,6 @@ export function useTranscription() {
     onAudioReady,
     sendAudio,
     discardAudio,
-    restoreSession
+    restoreSession,
   };
 }

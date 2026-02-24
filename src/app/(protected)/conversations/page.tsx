@@ -1,34 +1,32 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getConversationsByUser } from "@/features/transcription/lib/conversations/data";
-import Link from "next/link";
+import { ConversationList } from "./ConversationList";
+import { ConversationListSkeleton } from "./ConversationListSkeleton";
+import { NewConversationButton } from "./NewConversationButton";
 
-export default async function ConversationsPage() {
+export default async function ConversationsListPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return null; // middleware ya redirige
+    redirect("/login");
   }
 
-  const conversations = await getConversationsByUser(session.user.id);
-
   return (
-    <main>
-      <h1>Mis conversaciones</h1>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header - estático, no necesita suspense */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-stone-100">
+          Mis conversaciones
+        </h1>
+        <NewConversationButton />
+      </div>
 
-      {conversations.length === 0 && (
-        <p>No tenés conversaciones todavía</p>
-      )}
-
-      <ul>
-        {conversations.map((c) => (
-          <li key={c.id}>
-            <Link href={`/conversations/${c.id}`}>
-              {c.title}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </main>
+      {/* Listado - con suspense para skeleton */}
+      <Suspense fallback={<ConversationListSkeleton />}>
+        <ConversationList userId={session.user.id} />
+      </Suspense>
+    </div>
   );
 }

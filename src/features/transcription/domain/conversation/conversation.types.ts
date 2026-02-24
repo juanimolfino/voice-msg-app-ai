@@ -4,6 +4,13 @@
 
 export type Speaker = "A" | "B" | "Z"; // Z = ambos, para correcciones generales
 
+// Al final de conversation.types.ts, agregar:
+
+/**
+ * Target para correcciones (incluye "all" para ambos hablantes)
+ */
+export type TargetSpeaker = "A" | "B" | "all";
+
 /**
  * Mensaje base dicho por una persona
  */
@@ -60,6 +67,7 @@ export type Conversation = {
 };
 
 
+
 /**
  * Estados posibles del flujo de transcripción
  */
@@ -110,3 +118,68 @@ export type TranscriptionStatus = // 🔵 Estados del hook (useTranscription)
 // Next
 
 // Solo significado.
+
+
+/**
+ * ==========================================
+ * TIPOS PARA PERSISTENCIA EN BASE DE DATOS
+ * ==========================================
+ */
+
+/**
+ * Niveles de idioma soportados
+ */
+export type LanguageLevel = "beginner" | "intermediate" | "advanced";
+
+/**
+ * Tipo de corrección solicitada
+ */
+export type CorrectionType = "grammar" | "vocabulary" | "fluency" | "all";
+
+/**
+ * Estado de procesamiento de la conversación
+ */
+export type ConversationStatus = "processing" | "completed" | "error";
+
+/**
+ * Input para crear una nueva conversación en la DB
+ * (lo que envía el cliente al servidor)
+ */
+export type ConversationInput = {
+  title: string;
+  language: string;
+  level: LanguageLevel;
+  targetSpeaker: Speaker | "all";
+  correctionType: CorrectionType;
+  originalText: string;           // Raw transcription de OpenAI
+  correctionJson: CorrectedMessage[];  // Array de mensajes corregidos
+  durationSeconds?: number;       // Duración del audio en segundos
+};
+
+/**
+ * Conversación completa como viene de la DB
+ * (extiende el input con campos generados por la DB)
+ */
+export type ConversationRecord = ConversationInput & {
+  id: string;
+  userId: string;                 // UUID del usuario (de NextAuth)
+  status: ConversationStatus;
+  correctionsCount: number;       // Calculado al guardar
+  messageCount: number;           // Calculado al guardar
+  createdAt: string;              // ISO string
+  updatedAt: string;              // ISO string
+};
+
+/**
+ * Conversación simplificada para listados
+ * (sin el JSON completo, para performance)
+ */
+export type ConversationSummary = {
+  id: string;
+  title: string;
+  language: string;
+  level: LanguageLevel;
+  correctionsCount: number;
+  messageCount: number;
+  createdAt: string;
+};
