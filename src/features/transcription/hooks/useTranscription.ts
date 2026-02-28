@@ -12,7 +12,7 @@ export function useTranscription() {
   const [status, setStatus] = useState<TranscriptionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  // NUEVO: Escuchar cuando se limpia la sesión
+  // Escuchar cuando se limpia la sesión
   useEffect(() => {
     const cleanup = sessionEvents.on("session:cleared", () => {
       setAudio(null);
@@ -80,7 +80,7 @@ export function useTranscription() {
   }
 
   /**
-   * se usa para restaurar la sesión desde el localStorage al cargar el componente. Recibe un objeto con rawText y conversation, y los setea en el estado. Si hay conversación, también setea el status a "done".
+   * Restaurar la sesión desde localStorage
    */
   function restoreSession(data: {
     rawText: string | null;

@@ -1,37 +1,35 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+// hooks
 import { usePersistentSession } from "../../hooks/usePersistentSession";
-
 import { useTranscription } from "@/features/transcription/hooks/useTranscription";
 import { useGrammarCorrection } from "@/features/transcription/hooks/useGrammarCorrection";
 import { useSaveConversation } from "@/features/transcription/hooks/useSaveConversation";
-
+import { useDetectLanguage } from "@/features/transcription/hooks/useDetectLanguage";
+// services
 import { sessionEvents } from "@/services/events/sessionEvents";
-
+// ui
 import { AudioSourceSelector } from "@/features/transcription/ui/audio/AudioSourceSelector";
-import { ConversationView } from "@/features/transcription/ui/audio/ConversationView";
-import { SpeakerSelector } from "@/features/transcription/ui/audio/SpeakerSelector";
 import { CorrectedConversationView } from "@/features/transcription/ui/language/CorrectedConversationView";
-
-import {
-  Speaker,
-  ConversationInput,
-} from "../../domain/conversation/conversation.types";
+// types
+import { ConversationInput, LanguageLevel } from "../../domain/conversation/conversation.types";
 
 const SESSION_KEY = "transcription-session";
 
+type ProcessingStep = "idle" | "transcribing" | "detecting-language" | "correcting" | "done" | "error";
+
 export function TranscriptionContainer() {
-  const { isRestored, restoredData, save, clear } =
-    usePersistentSession(SESSION_KEY);
+  const { isRestored, restoredData, save, clear } = usePersistentSession(SESSION_KEY);
   const skipNextSaveRef = useRef(false);
 
+  // Hooks sin initialData - se hidratan con restore() en useEffect
   const {
     audio,
     rawText,
     conversation,
-    status,
-    error,
+    status: transcriptionStatus,
+    error: transcriptionError,
     onAudioReady,
     sendAudio,
     discardAudio,
@@ -40,83 +38,186 @@ export function TranscriptionContainer() {
 
   const {
     correctConversation,
+    clearResult: clearCorrectionResult,
     result: correctionResult,
-    loading,
+    restore: restoreCorrection,
   } = useGrammarCorrection();
 
   const { save: saveToDb, isSaving } = useSaveConversation();
 
+  const { 
+    detect: detectLanguage, 
+    language: detectedLanguage,
+    restore: restoreLanguage,
+  } = useDetectLanguage();
+
   // Estados locales
-  const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker>("A");
-  const [wasCleared, setWasCleared] = useState(false);
+  const [level, setLevel] = useState<LanguageLevel>("intermediate");
+  const [processingStep, setProcessingStep] = useState<ProcessingStep>("idle");
+  const [processError, setProcessError] = useState<string | null>(null);
 
-  // Escuchar limpieza de sesión
-  useEffect(() => {
-    const cleanup = sessionEvents.on("session:cleared", () => {
-      setWasCleared(true);
-      skipNextSaveRef.current = true;
-    });
-
-    return cleanup;
-  }, []);
-
-  // Efecto de restauración desde localStorage
-  useEffect(() => {
-    if (!isRestored || !restoredData || wasCleared) return;
-
-    skipNextSaveRef.current = true;
-
-    if (restoredData.rawText) {
-      restoreSession({
-        rawText: restoredData.rawText,
-        conversation: restoredData.conversation,
-      });
-    }
-  }, [isRestored, restoredData, restoreSession, wasCleared]);
-
-  // Efecto de guardado en localStorage (auto-save)
-  useEffect(() => {
-    if (!isRestored) return;
-    if (!conversation && !correctionResult) return;
-
-    if (skipNextSaveRef.current) {
-      skipNextSaveRef.current = false;
-      return;
-    }
-
-    save({ rawText, conversation, correctionResult });
-  }, [rawText, conversation, correctionResult, isRestored, save]);
-
-  // URL del audio memoizada
+  // URL del audio
   const audioUrl = useMemo(() => {
     if (!audio) return null;
     return URL.createObjectURL(audio);
   }, [audio]);
 
-  // Handler de reset
+  useEffect(() => {
+    return () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
+
+  // Restauración desde localStorage - USAMOS restore() en los 3 hooks
+  useEffect(() => {
+    if (!isRestored || !restoredData) return;
+
+    // Si no hay resultado completo, limpiar
+    if (!restoredData.correctionResult || !restoredData.conversation) {
+      clear();
+      return;
+    }
+
+    skipNextSaveRef.current = true;
+
+    if (restoredData.level) setLevel(restoredData.level);
+    setProcessingStep("done");
+
+    // Hidratar los 3 hooks
+    if (restoredData.rawText && restoredData.conversation) {
+      restoreSession({
+        rawText: restoredData.rawText,
+        conversation: restoredData.conversation,
+      });
+    }
+    
+    if (restoredData.detectedLanguage) {
+      restoreLanguage({ language: restoredData.detectedLanguage });
+    }
+    
+    restoreCorrection({ result: restoredData.correctionResult });
+    
+  }, [isRestored, restoredData, restoreSession, restoreLanguage, restoreCorrection, clear]);
+
+  // Auto-save
+  useEffect(() => {
+    if (!isRestored) return;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+
+    if (correctionResult && processingStep === "done") {
+      save({
+        rawText,
+        conversation,
+        correctionResult,
+        level,
+        detectedLanguage: detectedLanguage || undefined,
+      });
+    }
+  }, [
+    correctionResult, 
+    detectedLanguage,
+    processingStep, 
+    rawText, 
+    conversation, 
+    level, 
+    isRestored, 
+    save
+  ]);
+
+  // Escuchar limpieza
+  useEffect(() => {
+    const cleanup = sessionEvents.on("session:cleared", () => {
+      setProcessingStep("idle");
+      setLevel("intermediate");
+      setProcessError(null);
+      skipNextSaveRef.current = true;
+      clearCorrectionResult();
+    });
+    return cleanup;
+  }, [clearCorrectionResult]);
+
+  // Handler principal: PROCESAR
+  const handleProcess = useCallback(async () => {
+    if (!audio) return;
+
+    setProcessError(null);
+    setProcessingStep("transcribing");
+
+    try {
+      await sendAudio();
+    } catch (err) {
+      console.error("Error en transcripción:", err);
+      setProcessingStep("idle");
+    }
+  }, [audio, sendAudio]);
+
+  // Efecto: Cuando termina transcripción, detectar idioma
+  useEffect(() => {
+    if (transcriptionStatus !== "done" || processingStep !== "transcribing") return;
+    if (!conversation) {
+      setProcessError("No se generó conversación");
+      setProcessingStep("idle");
+      return;
+    }
+
+    setProcessingStep("detecting-language");
+    
+    detectLanguage(conversation).catch((err) => {
+      setProcessError(err instanceof Error ? err.message : "Error detectando idioma");
+      setProcessingStep("idle");
+    });
+  }, [transcriptionStatus, processingStep, conversation, detectLanguage]);
+
+  // Efecto: Cuando detecta idioma, corregir
+  useEffect(() => {
+    if (processingStep !== "detecting-language") return;
+    if (!detectedLanguage || !conversation) return;
+
+    const runCorrection = async () => {
+      try {
+        setProcessingStep("correcting");
+        await correctConversation({
+          conversation,
+          language: detectedLanguage,
+          level,
+          correct: { A: true, B: true },
+        });
+        setProcessingStep("done");
+      } catch (err) {
+        setProcessError(err instanceof Error ? err.message : "Error en corrección");
+        setProcessingStep("idle");
+      }
+    };
+
+    runCorrection();
+  }, [processingStep, detectedLanguage, conversation, level, correctConversation]);
+
+  // Reset completo
   const handleReset = useCallback(() => {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    sessionEvents.emit("session:cleared");
+    clear();
+    discardAudio();
+    clearCorrectionResult();
+    setProcessingStep("idle");
+    setProcessError(null);
+    setLevel("intermediate");
+  }, [discardAudio, clearCorrectionResult, clear, audioUrl]);
+
+  // Descartar solo audio
+  const handleDiscardAudio = useCallback(() => {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
     discardAudio();
     clear();
-  }, [discardAudio, clear]);
+    clearCorrectionResult();
+    setProcessingStep("idle");
+    setProcessError(null);
+  }, [discardAudio, clearCorrectionResult, clear, audioUrl]);
 
-  // Handler de corrección
-  const handleCorrect = useCallback(async () => {
-    if (!conversation) return;
-
-    await correctConversation({
-      conversation,
-      language: "english",
-      level: "intermediate",
-      correct: { A: true, B: true },
-    });
-  }, [conversation, correctConversation]);
-
-  // Handler de enviar audio
-  const handleSendAudio = useCallback(() => {
-    sendAudio();
-  }, [sendAudio]);
-
-  // Handler de guardar en DB
+  // Guardar en DB
   const handleSave = useCallback(async () => {
     if (!correctionResult || !rawText) return;
 
@@ -125,8 +226,8 @@ export function TranscriptionContainer() {
 
     const input: ConversationInput = {
       title,
-      language: "english",
-      level: "intermediate",
+      language: detectedLanguage || "english",
+      level,
       targetSpeaker: "all",
       correctionType: "grammar",
       originalText: rawText,
@@ -135,106 +236,154 @@ export function TranscriptionContainer() {
     };
 
     await saveToDb(input, SESSION_KEY);
-  }, [correctionResult, rawText, audio, saveToDb]);
+  }, [correctionResult, rawText, detectedLanguage, level, audio, saveToDb]);
+
+  // Estados derivados
+  const hasAudio = !!audio;
+  const hasResult = processingStep === "done" && !!correctionResult;
+  const isProcessing = processingStep === "transcribing" || 
+                       processingStep === "detecting-language" || 
+                       processingStep === "correcting";
+  const hasError = !!processError || transcriptionStatus === "error";
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      {/* Overlay de guardado - FIXED para cubrir toda la pantalla */}
-      {isSaving && (
-        <div className="fixed inset-0 h-screen w-screen bg-stone-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
+      {/* Overlay de procesamiento */}
+      {isProcessing && (
+        <div className="fixed inset-0 h-screen w-screen bg-stone-900/90 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="text-center space-y-4">
             <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto" />
-            <p className="text-stone-200 text-lg">Guardando conversación...</p>
-            <p className="text-stone-400 text-sm">
-              Esto solo tomará unos segundos
+            <p className="text-stone-200 text-lg">
+              {processingStep === "transcribing" && "🎤 Transcribiendo audio..."}
+              {processingStep === "detecting-language" && "🔍 Detectando idioma..."}
+              {processingStep === "correcting" && "✍️ Corrigiendo gramática..."}
             </p>
           </div>
         </div>
       )}
 
-      {/* Contenido normal */}
-      <div className={isSaving ? "opacity-50 pointer-events-none" : ""}>
-        {status === "idle" && (
+      {/* Overlay de guardado */}
+      {isSaving && (
+        <div className="fixed inset-0 h-screen w-screen bg-stone-900/90 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="animate-spin w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto" />
+            <p className="text-stone-200 text-lg">Guardando conversación...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Contenido */}
+      <div className={(isProcessing || isSaving) ? "opacity-50 pointer-events-none" : ""}>
+        
+        {/* ESTADO 1: Sin audio */}
+        {!hasAudio && !hasResult && (
           <>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 mb-4">
               🎧 Subí un audio o grabá uno para empezar
             </p>
-            <AudioSourceSelector onAudioReady={onAudioReady} />
+            <AudioSourceSelector onAudioReady={onAudioReady} disabled={isProcessing} />
           </>
         )}
 
-        {status === "ready" && audioUrl && (
-          <div className="space-y-2">
-            <audio controls src={audioUrl} className="w-full" />
-            <div className="flex gap-2">
-              <button
-                onClick={handleSendAudio}
-                className="bg-indigo-600 text-white px-4 py-2 rounded"
-              >
-                Enviar a transcribir
-              </button>
-              <button
-                onClick={handleReset}
-                className="bg-gray-200 px-4 py-2 rounded"
-              >
-                Descartar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {status === "sending" && (
-          <p className="text-sm text-gray-500">🧠 Transcribiendo audio...</p>
-        )}
-
-        {status === "error" && (
-          <div className="space-y-2">
-            <p className="text-sm text-red-600">{error}</p>
-            <button
-              onClick={handleReset}
-              className="bg-gray-200 px-4 py-2 rounded"
-            >
-              Volver a intentar
-            </button>
-          </div>
-        )}
-
-        {status === "done" && (
-          <>
+        {/* ESTADO 2: Con audio */}
+        {hasAudio && !hasResult && (
+          <div className="space-y-6">
             {audioUrl && <audio controls src={audioUrl} className="w-full" />}
 
-            <ConversationView rawText={rawText} conversation={conversation} />
-
-            <SpeakerSelector
-              speaker={selectedSpeaker}
-              onChange={setSelectedSpeaker}
-              onCorrect={handleCorrect}
-              loading={loading}
-            />
-
-            {correctionResult && (
-              <CorrectedConversationView messages={correctionResult.messages} />
+            {hasError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                <p className="text-red-700 text-sm">
+                  {processError || transcriptionError || "Hubo un error al procesar."}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleProcess}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    🔄 Reintentar
+                  </button>
+                  <button
+                    onClick={handleDiscardAudio}
+                    className="bg-gray-200 px-4 py-2 rounded text-sm hover:bg-gray-300 transition-colors"
+                  >
+                    Subir otro
+                  </button>
+                </div>
+              </div>
             )}
+
+            {!hasError && (
+              <>
+                <div className="bg-stone-800 p-4 rounded-lg space-y-3">
+                  <label className="block text-stone-300 text-sm font-medium">
+                    Nivel del hablante
+                  </label>
+                  <select
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value as LanguageLevel)}
+                    disabled={isProcessing}
+                    className="w-full bg-stone-700 text-stone-100 border border-stone-600 rounded px-3 py-2"
+                  >
+                    <option value="beginner">Principiante</option>
+                    <option value="intermediate">Intermedio</option>
+                    <option value="advanced">Avanzado</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleProcess}
+                    disabled={isProcessing}
+                    className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  >
+                    ✨ Procesar
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 transition-colors"
+                  >
+                    Descartar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ESTADO 3: Resultado completo */}
+        {hasResult && (
+          <div className="space-y-6">
+            {audioUrl ? (
+              <audio controls src={audioUrl} className="w-full" />
+            ) : (
+              <div className="bg-stone-800 p-3 rounded text-sm text-stone-400">
+                📝 Audio no disponible (sesión guardada)
+              </div>
+            )}
+            
+            <div className="bg-stone-800 p-3 rounded text-sm text-stone-400">
+              Idioma: <span className="text-stone-200 capitalize">{detectedLanguage}</span> • 
+              Nivel: <span className="text-stone-200 capitalize">{level}</span>
+            </div>
+
+            <CorrectedConversationView messages={correctionResult.messages} />
 
             <div className="flex gap-2">
               <button
-                onClick={handleReset}
-                className="bg-gray-200 px-4 py-2 rounded"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors disabled:opacity-50"
               >
-                Transcribir otro audio
+                {isSaving ? "Guardando..." : "💾 Guardar"}
               </button>
-
-              {correctionResult && (
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? "Guardando..." : "Guardar conversación"}
-                </button>
-              )}
+              <button
+                onClick={handleReset}
+                className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 transition-colors"
+              >
+                🔄 Nueva
+              </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
