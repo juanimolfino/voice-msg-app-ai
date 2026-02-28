@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { CorrectionResult } from "../domain/conversation/conversation.types";
 import { sessionEvents } from "@/services/events/sessionEvents";
 
@@ -53,11 +53,18 @@ export function useGrammarCorrection() {
     setResult(null);
   }
 
+  // NUEVO: Restaurar desde localStorage
+  const restore = useCallback((data: { result: CorrectionResult }) => {
+    if (!data.result) return;
+    setResult(data.result);
+  }, []);
+
   return {
     correctConversation,
-    clearResult, // función para limpiar resultado
-    result, // expuesto al container
+    clearResult,
+    result,
     loading,
     error,
+    restore, // NUEVO
   };
 }
