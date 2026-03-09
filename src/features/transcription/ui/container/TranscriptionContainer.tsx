@@ -33,13 +33,25 @@ interface TranscriptionContainerProps {
   credits: number;
 }
 
+// 👉 TIPO PARA EVENTOS GLOBALES DE CRÉDITOS
+declare global {
+  interface WindowEventMap {
+    'credit:spent': CustomEvent;
+    'credit:refunded': CustomEvent;
+  }
+}
+
 export function TranscriptionContainer({
   hasCredits,
- // credits,
+  //credits,
 }: TranscriptionContainerProps) {
   const { isRestored, restoredData, save, clear } =
     usePersistentSession(SESSION_KEY);
   const skipNextSaveRef = useRef(false);
+
+  // 👉 REF PARA SABER SI YA GASTAMOS EL CRÉDITO EN ESTE PIPELINE
+  // Evita gastar dos veces si hay reintentos
+  const creditSpentRef = useRef(false);
 
   // Hooks sin initialData - se hidratan con restore() en useEffect
   const {
@@ -159,14 +171,41 @@ export function TranscriptionContainer({
       setProcessError(null);
       skipNextSaveRef.current = true;
       clearCorrectionResult();
+      // 👉 Resetear el flag de crédito gastado al limpiar sesión
+      creditSpentRef.current = false;
     });
     return cleanup;
   }, [clearCorrectionResult]);
+
+  // 👉 EFECTO: Cuando termina la corrección exitosamente, disparar evento de crédito gastado
+  useEffect(() => {
+    if (processingStep === "done" && correctionResult && !creditSpentRef.current) {
+      // 👉 Marcar que gastamos el crédito
+      creditSpentRef.current = true;
+      
+      // 👉 DISPARAR EVENTO GLOBAL: El header se actualizará instantáneamente
+      window.dispatchEvent(new CustomEvent('credit:spent'));
+      
+      console.log('💰 Crédito gastado - UI actualizada');
+    }
+  }, [processingStep, correctionResult]);
+
+  // 👉 EFECTO: Si hay error en corrección, disparar reembolso visual
+  useEffect(() => {
+    if (processingStep === "error" && creditSpentRef.current) {
+      // 👉 El backend ya reembolsó, nosotros actualizamos la UI
+      window.dispatchEvent(new CustomEvent('credit:refunded'));
+      creditSpentRef.current = false;
+      console.log('💰 Crédito reembolsado - UI actualizada');
+    }
+  }, [processingStep]);
 
   // Handler principal: PROCESAR
   const handleProcess = useCallback(async () => {
     if (!audio) return;
 
+    // 👉 Resetear flag al iniciar nuevo proceso
+    creditSpentRef.current = false;
     setProcessError(null);
     setProcessingStep("transcribing");
 
@@ -194,7 +233,7 @@ export function TranscriptionContainer({
       setProcessError(
         err instanceof Error ? err.message : "Error detectando idioma",
       );
-      setProcessingStep("idle");
+      setProcessingStep("error"); // 👉 Marcar como error para posible reembolso
     });
   }, [transcriptionStatus, processingStep, conversation, detectLanguage]);
 
@@ -217,7 +256,7 @@ export function TranscriptionContainer({
         setProcessError(
           err instanceof Error ? err.message : "Error en corrección",
         );
-        setProcessingStep("idle");
+        setProcessingStep("error"); // 👉 Marcar como error para reembolso
       }
     };
 
@@ -240,6 +279,7 @@ export function TranscriptionContainer({
     setProcessingStep("idle");
     setProcessError(null);
     setLevel("intermediate");
+    creditSpentRef.current = false;
   }, [discardAudio, clearCorrectionResult, clear, audioUrl]);
 
   // Descartar solo audio
@@ -250,6 +290,7 @@ export function TranscriptionContainer({
     clearCorrectionResult();
     setProcessingStep("idle");
     setProcessError(null);
+    creditSpentRef.current = false;
   }, [discardAudio, clearCorrectionResult, clear, audioUrl]);
 
   // Guardar en DB

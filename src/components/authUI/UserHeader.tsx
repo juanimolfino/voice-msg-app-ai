@@ -15,7 +15,7 @@ interface UserHeaderProps {
 export function UserHeader({ 
   email, 
   initialCredits, 
-  initialHasCredits,
+  //initialHasCredits,
   plan = 'free',
   usedThisMonth = 0,
   includedThisMonth = 0
