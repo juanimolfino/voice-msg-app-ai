@@ -1,0 +1,31 @@
+ mix: Freemium + Suscripción Pro + Pay-as-you-go.
+
+| Paso | Qué hacemos                              | Por qué                                  |
+| ---- | ---------------------------------------- | ---------------------------------------- |
+| 1.1  | Crear tabla `user_credits` en Supabase   | Guardar créditos disponibles por usuario |
+| 1.2  | Crear función `spendCredit()`            | Descontar 1 crédito al procesar audio    |
+| 1.3  | Bloquear procesamiento si `credits <= 0` | Forzar upgrade/pago                      |
+| 1.4  | Dar 5 créditos gratis al registrarse     | Onboarding gratuito                      |
+
+
+| Paso | Qué hacemos                                                                | Por qué                     |
+| ---- | -------------------------------------------------------------------------- | --------------------------- |
+| 2.1  | Crear cuenta Stripe, producto "Pro", precio \$15/mes                       | Configurar el producto      |
+| 2.2  | Instalar `stripe` SDK en Next.js                                           | Backend para webhooks       |
+| 2.3  | Crear API route `/api/stripe/checkout-session`                             | Iniciar pago desde frontend |
+| 2.4  | Crear página de éxito/cancelación Stripe                                   | Redirección post-pago       |
+| 2.5  | Webhook `/api/stripe/webhook` para `checkout.session.completed`            | Escuchar "pago exitoso"     |
+| 2.6  | Al recibir webhook, actualizar `user_credits` a "ilimitado" o 100 créditos | Entregar el producto        |
+
+
+
+SEGURIDAD Y CREDITOS:
+
+| Capa                   | Implementación                       |
+| ---------------------- | ------------------------------------ |
+| Autenticación          | `requireAuth()` en todas las APIs    |
+| Autorización           | `userId` de sesión, no del body      |
+| Créditos               | `checkCredits()` + `spendCredit()`   |
+| Reembolso              | `refundCredit()` si falla última API |
+| SQL Injection          | Queries parametrizadas (`$1`, `$2`)  |
+| Escritura directa a DB | Solo desde backend, nunca cliente    |
