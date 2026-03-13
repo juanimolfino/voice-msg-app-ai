@@ -1,22 +1,42 @@
-import { NextResponse } from "next/server"; // 👉 Herramienta de Next.js para devolver respuestas HTTP
+// src/app/api/transcription-diarize/route.ts
+import { NextResponse } from "next/server";
 import { transcribeDiarizedAudio } from "@/features/transcription/services/openai/transcribeDiarized";
-// 👉 Service
-// 📡 Habla con OpenAI
-// 🎧 Recibe audio
-// 📄 Devuelve transcripción técnica
-
-// 💡 No decide nada, solo ejecuta
-import { mapDiarizedToConversation } from "@/features/transcription/domain/conversation/conversation.mapper"; // Esta es la clave
-
-// 👉 Convierte datos técnicos
-// 👉 en datos del negocio
-
+import { mapDiarizedToConversation } from "@/features/transcription/domain/conversation/conversation.mapper";
+import { requireAuth } from "@/services/auth/requireAuth";
+// 👉 Solo importamos canProcessConversation para VERIFICAR, no gastamos aquí
+import { canProcessConversation } from "@/services/credits/creditsService";
 
 export async function POST(req: Request) {
+  // ✅ VERIFICAR SESIÓN
+  const auth = await requireAuth();
+  if (!auth.success) return auth.response;
+  
+  if (!auth.userId) {
+    return NextResponse.json(
+      { error: "Sesión inválida" },
+      { status: 401 }
+    );
+  }
+  
+  const userId = auth.userId;
+
+  // 👉 SOLO VERIFICAMOS que tiene créditos disponibles
+  // NO gastamos todavía, esperamos a que todo el pipeline termine
+  const check = await canProcessConversation(userId);
+  
+  if (!check.allowed) {
+    return NextResponse.json(
+      { 
+        error: check.reason || "Sin créditos disponibles. Actualizá a Pro o comprá más.",
+        code: "INSUFFICIENT_CREDITS",
+        action: "UPGRADE_OR_BUY"
+      },
+      { status: 402 }
+    );
+  }
+
   const formData = await req.formData();
-  const audioFile = formData.get("audio") as File | null; // 📌 as File | null
-// Porque TS no confía en que exista 😅
-// TS SIEMPRE te obliga a cubrir errores posibles 🛡️
+  const audioFile = formData.get("audio") as File | null;
 
   if (!audioFile) {
     return NextResponse.json(
@@ -26,58 +46,25 @@ export async function POST(req: Request) {
   }
 
   try {
-    const diarized = await transcribeDiarizedAudio(audioFile); //le doy el audio a openai y me devuevle la transcripción técnica con diarización
+    // 👉 Procesar audio con OpenAI (SIN gastar crédito)
+    const diarized = await transcribeDiarizedAudio(audioFile);
+    const { rawText, conversation } = mapDiarizedToConversation(diarized.segments);
 
-//     resultado
-//     {
-//   text: "...",
-//   segments: [
-//     { speaker: "spk_0", text: "hello" }
-//     { speaker: "spk_1", text: "hi there" }]
-//    } AUN NO SIRVE PARA LA UI
-
-    const { rawText, conversation } =
-      mapDiarizedToConversation(diarized.segments); // mentalmente hace esto: 
-      
-      
-// OpenAI speaker IDs
-// ↓
-// Mapeo A / B
-// ↓
-// Texto legible
-// ↓
-// Conversación lista para UI
-
-// output del domain:
-// {
-//   rawText: "Hi Hello",
-//   conversation: `
-// Persona A:
-// - Hi
-// Persona B:
-// - Hello
-// `
-// }
-
-    return NextResponse.json({ rawText, conversation });
+    return NextResponse.json({ 
+      rawText, 
+      conversation,
+      // 👉 Devolvemos el source para que el frontend sepa de dónde vendrá el gasto
+      creditSource: check.source // 'free' | 'included' | 'purchased' | 'unlimited'
+    });
+    
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error";
-
+    const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Transcription error:", message);
-
+    
+    // 👉 NO hay reembolso porque NO gastamos todavía
     return NextResponse.json(
       { error: message },
       { status: 500 }
     );
   }
 }
-
-//CONCLUSION: 
-// 👉 El endpoint no piensa
-// 👉 El domain piensa
-
-//🧠 Idea clave (una frase)
-
-// El domain define QUÉ es tu mundo
-// El mapper define CÓMO entra o sale información de ese mundo

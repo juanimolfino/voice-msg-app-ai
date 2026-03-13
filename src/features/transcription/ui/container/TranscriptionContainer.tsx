@@ -13,15 +13,45 @@ import { sessionEvents } from "@/services/events/sessionEvents";
 import { AudioSourceSelector } from "@/features/transcription/ui/audio/AudioSourceSelector";
 import { CorrectedConversationView } from "@/features/transcription/ui/language/CorrectedConversationView";
 // types
-import { ConversationInput, LanguageLevel } from "../../domain/conversation/conversation.types";
+import {
+  ConversationInput,
+  LanguageLevel,
+} from "../../domain/conversation/conversation.types";
 
 const SESSION_KEY = "transcription-session";
 
-type ProcessingStep = "idle" | "transcribing" | "detecting-language" | "correcting" | "done" | "error";
+type ProcessingStep =
+  | "idle"
+  | "transcribing"
+  | "detecting-language"
+  | "correcting"
+  | "done"
+  | "error";
 
-export function TranscriptionContainer() {
-  const { isRestored, restoredData, save, clear } = usePersistentSession(SESSION_KEY);
+interface TranscriptionContainerProps {
+  hasCredits: boolean;
+  credits: number;
+}
+
+// 👉 TIPO PARA EVENTOS GLOBALES DE CRÉDITOS
+declare global {
+  interface WindowEventMap {
+    'credit:spent': CustomEvent;
+    'credit:refunded': CustomEvent;
+  }
+}
+
+export function TranscriptionContainer({
+  hasCredits,
+  //credits,
+}: TranscriptionContainerProps) {
+  const { isRestored, restoredData, save, clear } =
+    usePersistentSession(SESSION_KEY);
   const skipNextSaveRef = useRef(false);
+
+  // 👉 REF PARA SABER SI YA GASTAMOS EL CRÉDITO EN ESTE PIPELINE
+  // Evita gastar dos veces si hay reintentos
+  const creditSpentRef = useRef(false);
 
   // Hooks sin initialData - se hidratan con restore() en useEffect
   const {
@@ -45,8 +75,8 @@ export function TranscriptionContainer() {
 
   const { save: saveToDb, isSaving } = useSaveConversation();
 
-  const { 
-    detect: detectLanguage, 
+  const {
+    detect: detectLanguage,
     language: detectedLanguage,
     restore: restoreLanguage,
   } = useDetectLanguage();
@@ -90,14 +120,20 @@ export function TranscriptionContainer() {
         conversation: restoredData.conversation,
       });
     }
-    
+
     if (restoredData.detectedLanguage) {
       restoreLanguage({ language: restoredData.detectedLanguage });
     }
-    
+
     restoreCorrection({ result: restoredData.correctionResult });
-    
-  }, [isRestored, restoredData, restoreSession, restoreLanguage, restoreCorrection, clear]);
+  }, [
+    isRestored,
+    restoredData,
+    restoreSession,
+    restoreLanguage,
+    restoreCorrection,
+    clear,
+  ]);
 
   // Auto-save
   useEffect(() => {
@@ -117,14 +153,14 @@ export function TranscriptionContainer() {
       });
     }
   }, [
-    correctionResult, 
+    correctionResult,
     detectedLanguage,
-    processingStep, 
-    rawText, 
-    conversation, 
-    level, 
-    isRestored, 
-    save
+    processingStep,
+    rawText,
+    conversation,
+    level,
+    isRestored,
+    save,
   ]);
 
   // Escuchar limpieza
@@ -135,14 +171,41 @@ export function TranscriptionContainer() {
       setProcessError(null);
       skipNextSaveRef.current = true;
       clearCorrectionResult();
+      // 👉 Resetear el flag de crédito gastado al limpiar sesión
+      creditSpentRef.current = false;
     });
     return cleanup;
   }, [clearCorrectionResult]);
+
+  // 👉 EFECTO: Cuando termina la corrección exitosamente, disparar evento de crédito gastado
+  useEffect(() => {
+    if (processingStep === "done" && correctionResult && !creditSpentRef.current) {
+      // 👉 Marcar que gastamos el crédito
+      creditSpentRef.current = true;
+      
+      // 👉 DISPARAR EVENTO GLOBAL: El header se actualizará instantáneamente
+      window.dispatchEvent(new CustomEvent('credit:spent'));
+      
+      console.log('💰 Crédito gastado - UI actualizada');
+    }
+  }, [processingStep, correctionResult]);
+
+  // 👉 EFECTO: Si hay error en corrección, disparar reembolso visual
+  useEffect(() => {
+    if (processingStep === "error" && creditSpentRef.current) {
+      // 👉 El backend ya reembolsó, nosotros actualizamos la UI
+      window.dispatchEvent(new CustomEvent('credit:refunded'));
+      creditSpentRef.current = false;
+      console.log('💰 Crédito reembolsado - UI actualizada');
+    }
+  }, [processingStep]);
 
   // Handler principal: PROCESAR
   const handleProcess = useCallback(async () => {
     if (!audio) return;
 
+    // 👉 Resetear flag al iniciar nuevo proceso
+    creditSpentRef.current = false;
     setProcessError(null);
     setProcessingStep("transcribing");
 
@@ -156,7 +219,8 @@ export function TranscriptionContainer() {
 
   // Efecto: Cuando termina transcripción, detectar idioma
   useEffect(() => {
-    if (transcriptionStatus !== "done" || processingStep !== "transcribing") return;
+    if (transcriptionStatus !== "done" || processingStep !== "transcribing")
+      return;
     if (!conversation) {
       setProcessError("No se generó conversación");
       setProcessingStep("idle");
@@ -164,10 +228,12 @@ export function TranscriptionContainer() {
     }
 
     setProcessingStep("detecting-language");
-    
+
     detectLanguage(conversation).catch((err) => {
-      setProcessError(err instanceof Error ? err.message : "Error detectando idioma");
-      setProcessingStep("idle");
+      setProcessError(
+        err instanceof Error ? err.message : "Error detectando idioma",
+      );
+      setProcessingStep("error"); // 👉 Marcar como error para posible reembolso
     });
   }, [transcriptionStatus, processingStep, conversation, detectLanguage]);
 
@@ -187,13 +253,21 @@ export function TranscriptionContainer() {
         });
         setProcessingStep("done");
       } catch (err) {
-        setProcessError(err instanceof Error ? err.message : "Error en corrección");
-        setProcessingStep("idle");
+        setProcessError(
+          err instanceof Error ? err.message : "Error en corrección",
+        );
+        setProcessingStep("error"); // 👉 Marcar como error para reembolso
       }
     };
 
     runCorrection();
-  }, [processingStep, detectedLanguage, conversation, level, correctConversation]);
+  }, [
+    processingStep,
+    detectedLanguage,
+    conversation,
+    level,
+    correctConversation,
+  ]);
 
   // Reset completo
   const handleReset = useCallback(() => {
@@ -205,6 +279,7 @@ export function TranscriptionContainer() {
     setProcessingStep("idle");
     setProcessError(null);
     setLevel("intermediate");
+    creditSpentRef.current = false;
   }, [discardAudio, clearCorrectionResult, clear, audioUrl]);
 
   // Descartar solo audio
@@ -215,6 +290,7 @@ export function TranscriptionContainer() {
     clearCorrectionResult();
     setProcessingStep("idle");
     setProcessError(null);
+    creditSpentRef.current = false;
   }, [discardAudio, clearCorrectionResult, clear, audioUrl]);
 
   // Guardar en DB
@@ -241,10 +317,12 @@ export function TranscriptionContainer() {
   // Estados derivados
   const hasAudio = !!audio;
   const hasResult = processingStep === "done" && !!correctionResult;
-  const isProcessing = processingStep === "transcribing" || 
-                       processingStep === "detecting-language" || 
-                       processingStep === "correcting";
+  const isProcessing =
+    processingStep === "transcribing" ||
+    processingStep === "detecting-language" ||
+    processingStep === "correcting";
   const hasError = !!processError || transcriptionStatus === "error";
+  const canProcess = hasAudio && !hasResult && !isProcessing && hasCredits;
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -254,8 +332,10 @@ export function TranscriptionContainer() {
           <div className="text-center space-y-4">
             <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto" />
             <p className="text-stone-200 text-lg">
-              {processingStep === "transcribing" && "🎤 Transcribiendo audio..."}
-              {processingStep === "detecting-language" && "🔍 Detectando idioma..."}
+              {processingStep === "transcribing" &&
+                "🎤 Transcribiendo audio..."}
+              {processingStep === "detecting-language" &&
+                "🔍 Detectando idioma..."}
               {processingStep === "correcting" && "✍️ Corrigiendo gramática..."}
             </p>
           </div>
@@ -272,16 +352,34 @@ export function TranscriptionContainer() {
         </div>
       )}
 
+      {/* En el JSX, mostrar mensaje si no tiene créditos */}
+      {!hasCredits && hasAudio && !hasResult && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <p className="text-amber-700 text-sm">
+            No tenés créditos disponibles.
+            <a href="/upgrade" className="underline font-medium ml-1">
+              Comprá más o actualizá a Pro
+            </a>
+          </p>
+        </div>
+      )}
+
       {/* Contenido */}
-      <div className={(isProcessing || isSaving) ? "opacity-50 pointer-events-none" : ""}>
-        
+      <div
+        className={
+          isProcessing || isSaving ? "opacity-50 pointer-events-none" : ""
+        }
+      >
         {/* ESTADO 1: Sin audio */}
         {!hasAudio && !hasResult && (
           <>
             <p className="text-sm text-gray-500 mb-4">
               🎧 Subí un audio o grabá uno para empezar
             </p>
-            <AudioSourceSelector onAudioReady={onAudioReady} disabled={isProcessing} />
+            <AudioSourceSelector
+              onAudioReady={onAudioReady}
+              disabled={isProcessing}
+            />
           </>
         )}
 
@@ -293,7 +391,9 @@ export function TranscriptionContainer() {
             {hasError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
                 <p className="text-red-700 text-sm">
-                  {processError || transcriptionError || "Hubo un error al procesar."}
+                  {processError ||
+                    transcriptionError ||
+                    "Hubo un error al procesar."}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -333,7 +433,7 @@ export function TranscriptionContainer() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleProcess}
-                    disabled={isProcessing}
+                    disabled={isProcessing || !canProcess}
                     className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors disabled:opacity-50"
                   >
                     ✨ Procesar
@@ -360,10 +460,14 @@ export function TranscriptionContainer() {
                 📝 Audio no disponible (sesión guardada)
               </div>
             )}
-            
+
             <div className="bg-stone-800 p-3 rounded text-sm text-stone-400">
-              Idioma: <span className="text-stone-200 capitalize">{detectedLanguage}</span> • 
-              Nivel: <span className="text-stone-200 capitalize">{level}</span>
+              Idioma:{" "}
+              <span className="text-stone-200 capitalize">
+                {detectedLanguage}
+              </span>{" "}
+              • Nivel:{" "}
+              <span className="text-stone-200 capitalize">{level}</span>
             </div>
 
             <CorrectedConversationView messages={correctionResult.messages} />
