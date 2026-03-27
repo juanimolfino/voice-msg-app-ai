@@ -4,6 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../api/auth/[...nextauth]/route";
 import { getUserCredits } from "@/services/credits/getCreditsAction";
 import { UserHeader } from "@/components/authUI/UserHeader";
+import { Footer } from "@/components/layout/Footer";
+
+import { TestBuyButton } from "@/components/TestBuyButton";
 
 export default async function Page() {
   const session = await getServerSession(authOptions);
@@ -12,9 +15,9 @@ export default async function Page() {
   let creditsData = {
     credits: 0,
     hasCredits: false,
-    plan: 'free',
+    plan: "free",
     usedThisMonth: 0,
-    includedThisMonth: 0
+    includedThisMonth: 0,
   };
 
   // Obtener créditos en el servidor (sin parpadeo inicial)
@@ -26,7 +29,7 @@ export default async function Page() {
         hasCredits: result.hasCredits,
         plan: result.plan,
         usedThisMonth: result.usedThisMonth,
-        includedThisMonth: result.includedThisMonth
+        includedThisMonth: result.includedThisMonth,
       };
     }
   }
@@ -44,15 +47,19 @@ export default async function Page() {
           includedThisMonth={creditsData.includedThisMonth}
         />
       </header>
+      <div className="mb-4">
+        <TestBuyButton /> {/* 👉 BOTÓN DE TEST */}
+      </div>
       <main className="flex flex-col row-start-2 items-center sm:items-start">
         {/* 👉 El container recibe props simples, luego usa eventos globales */}
-        <TranscriptionContainer 
-          hasCredits={creditsData.hasCredits} 
+        <TranscriptionContainer
+          hasCredits={creditsData.hasCredits}
           credits={creditsData.credits}
         />
       </main>
       <footer className="row-start-3 flex flex-wrap items-center justify-center">
         <LogoutButton />
+        <Footer />
       </footer>
     </div>
   );
